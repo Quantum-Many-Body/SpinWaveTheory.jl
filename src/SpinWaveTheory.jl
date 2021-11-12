@@ -82,12 +82,6 @@ end
     U = reparameter(eltype(eltype(S)), :index, I)
     M = fulltype(eltype(S), NamedTuple{(:value, :id), Tuple{V, ID{U}}})
 end
-
-"""
-    (hp::HPTransformation)(oid::OID{<:Index{<:AbstractPID, <:SID{S}}}) where S -> Operators
-
-Apply the Holstein-Primakoff transformation.
-"""
 function (hp::HPTransformation)(oid::OID{<:Index{<:AbstractPID, <:SID{S}}}) where S
     datatype = valtype(eltype(valtype(hp)))
     factor = √(2*S*one(datatype))/2
