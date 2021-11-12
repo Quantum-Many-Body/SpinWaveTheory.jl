@@ -10,5 +10,6 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 TightBindingApproximation = "d3576f78-cb9d-4774-9dc5-b247cf392ff4"
 
 [compat]
-QuantumLattices = "0.8"
+QuantumLattices = "0.8.1"
+TightBindingApproximation = "0.1.2"
 julia = "1.6"

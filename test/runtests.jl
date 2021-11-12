@@ -1,6 +1,6 @@
-using SpinWaveTheory
 using Test
+using SafeTestsets
 
-@testset "SpinWaveTheory.jl" begin
-    # Write your tests here.
+@safetestset "SpinWaveTheory" begin
+    include("SpinWaveTheory.jl")
 end
