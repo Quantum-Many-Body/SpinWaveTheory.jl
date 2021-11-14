@@ -19,6 +19,7 @@ makedocs(;
             "examples/Introduction.md",
             "examples/SquareLatticeFerromagnet.md",
             "examples/SquareLatticeAntiFerromagnet.md",
+            "examples/CrBr3.md",
         ]
     ],
 )

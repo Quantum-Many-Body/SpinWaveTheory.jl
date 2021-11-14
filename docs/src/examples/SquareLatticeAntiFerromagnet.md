@@ -28,14 +28,21 @@ cell = Lattice("MagneticCell", [
 hilbert = Hilbert(pid=>Spin{1//2}(1) for pid in cell.pids)
 
 J = SpinTerm(:J, 1.0, 1, heisenberg"+-z")
+h = SpinTerm(:h, -0.01, 0, sᶻ""*sᶻ"")
 
 magneticstructure = MagneticStructure(cell,
     Dict(pid=>(iseven(pid.site) ? [0, 0, 1] : [0, 0, -1]) for pid in cell.pids)
     )
 
-antiferromagnet = Algorithm("SquareAFM", LSWT(lattice, hilbert, (J,), magneticstructure))
+antiferromagnet = Algorithm("SquareAFM", LSWT(lattice, hilbert, (J, h), magneticstructure))
 
 path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", len=100)
-energybands = register!(antiferromagnet, :EB, TBAEB(path))
-plot(energybands)
+ins = register!(antiferromagnet, :INS,
+    InelasticNeutronSpectra(path, range(0.0, 2.5, length=251); eta=0.1, log=true)
+    )
+energybands = register!(antiferromagnet, :EB, EnergyBands(path))
+
+plt = plot()
+plot!(plt, ins)
+plot!(plt, energybands, color=:white, linestyle=:dash)
 ```

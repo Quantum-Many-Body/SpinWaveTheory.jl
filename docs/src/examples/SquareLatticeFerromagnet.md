@@ -26,6 +26,13 @@ magneticstructure = MagneticStructure(lattice, Dict(pid=>[0, 0, 1] for pid in la
 ferromagnet = Algorithm("SquareFM", LSWT(lattice, hilbert, (J,), magneticstructure))
 
 path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", len=100)
-energybands = register!(ferromagnet, :dispersion, TBAEB(path))
-plot(energybands)
+
+ins = register!(ferromagnet, :INS,
+    InelasticNeutronSpectra(path, range(0.0, 5.0, length=501); eta=0.3, log=true)
+    )
+energybands = register!(ferromagnet, :dispersion, EnergyBands(path))
+
+plt = plot()
+plot!(plt, ins)
+plot!(plt, energybands, color=:white, linestyle=:dash)
 ```

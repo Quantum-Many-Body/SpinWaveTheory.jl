@@ -133,9 +133,9 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[QuantumLattices]]
 deps = ["DataStructures", "Formatting", "LaTeXStrings", "LinearAlgebra", "MacroTools", "NearestNeighbors", "Printf", "Random", "RecipesBase", "Reexport", "Serialization", "StaticArrays", "TimerOutputs"]
-git-tree-sha1 = "e8410be81834947f01090051bfada4c5141ad2b2"
+git-tree-sha1 = "5386862c21f9c62190f96c9a8359026aabdd6e15"
 uuid = "78ae1a1f-1d5d-5174-b61c-66e31b2346dc"
-version = "0.8.1"
+version = "0.8.3"
 
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
@@ -207,9 +207,9 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[TightBindingApproximation]]
 deps = ["LinearAlgebra", "Printf", "QuantumLattices", "TimerOutputs"]
-git-tree-sha1 = "c77b6e9f55d0e91032f6bc9d2a06946cbb55600d"
+git-tree-sha1 = "3302ae710876c954dd8fcd24b2354e3915da2656"
 uuid = "d3576f78-cb9d-4774-9dc5-b247cf392ff4"
-version = "0.1.2"
+version = "0.1.3"
 
 [[TimerOutputs]]
 deps = ["ExprTools", "Printf"]
