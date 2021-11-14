@@ -36,9 +36,9 @@ magneticstructure = MagneticStructure(cell,
 
 antiferromagnet = Algorithm("SquareAFM", LSWT(lattice, hilbert, (J, h), magneticstructure))
 
-path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", len=100)
+path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=100)
 ins = register!(antiferromagnet, :INS,
-    InelasticNeutronSpectra(path, range(0.0, 2.5, length=251); eta=0.1, log=true)
+    InelasticNeutronSpectra(path, range(0.0, 2.5, length=251); η=0.1, log=true)
     )
 energybands = register!(antiferromagnet, :EB, EnergyBands(path))
 

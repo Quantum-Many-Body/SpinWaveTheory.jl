@@ -47,10 +47,10 @@ K = SpinTerm(:K, -4.288, 1, couplings=kitaev, modulate=true)
 
 magneticstructure = MagneticStructure(lattice, Dict(pid=>[1, 1, 1] for pid in lattice.pids))
 CrBr3 = Algorithm("CrBr3", LSWT(lattice, hilbert, (J₁, J₂, J₃, K, Γ), magneticstructure))
-path = ReciprocalPath(lattice.reciprocals, (-2, -1)=>(2, 1), len=400)
+path = ReciprocalPath(lattice.reciprocals, (-2, -1)=>(2, 1), length=400)
 
 ins = register!(CrBr3, :INS,
-    InelasticNeutronSpectra(path, range(0.0, 15.0, length=301); eta=0.5, log=true)
+    InelasticNeutronSpectra(path, range(0.0, 15.0, length=301); η=0.5, log=true)
     )
 eb = register!(CrBr3, :EB, EnergyBands(path))
 plt = plot()

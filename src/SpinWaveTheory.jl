@@ -190,14 +190,14 @@ Inelastic neutron spectra of magnetically ordered quantum lattice systems by lin
 struct InelasticNeutronSpectra{P<:ReciprocalPath, E<:AbstractVector} <: Action
     path::P
     energies::E
-    eta::Float64
+    η::Float64
     log::Bool
-    function InelasticNeutronSpectra(path::ReciprocalPath, energies::AbstractVector, eta::Float64, log::Bool)
+    function InelasticNeutronSpectra(path::ReciprocalPath, energies::AbstractVector, η::Float64, log::Bool)
         @assert keys(path)==(:k,) "InelasticNeutronSpectra error: the name of the momenta in the path must be :k."
-        new{typeof(path), typeof(energies)}(path, energies, eta, log)
+        new{typeof(path), typeof(energies)}(path, energies, η, log)
     end
 end
-@inline InelasticNeutronSpectra(path::ReciprocalPath, energies::AbstractVector; eta::Float64=0.1, log::Bool=true) = InelasticNeutronSpectra(path, energies, eta, log)
+@inline InelasticNeutronSpectra(path::ReciprocalPath, energies::AbstractVector; η::Float64=0.1, log::Bool=true) = InelasticNeutronSpectra(path, energies, η, log)
 @inline function prepare!(ins::InelasticNeutronSpectra, lswt::LSWT)
     x = collect(Float64, 0:(length(ins.path)-1))
     y = collect(Float64, ins.energies)
@@ -218,7 +218,7 @@ function run!(lswt::Algorithm{<:LSWT}, ins::Assignment{<:InelasticNeutronSpectra
                 diag = Diagonal(eigenvectors'*m*eigenvectors)
                 for (nₑ, e) in enumerate(ins.action.energies)
                     for j = (dimension(lswt.engine)÷2+1):dimension(lswt.engine)
-                        data[nₑ, i] += factor*diag[j, j]*ins.action.eta^2/(ins.action.eta^2+(e-eigenvalues[j])^2)/pi
+                        data[nₑ, i] += factor*diag[j, j]*ins.action.η^2/(ins.action.η^2+(e-eigenvalues[j])^2)/pi
                     end
                 end
             end
