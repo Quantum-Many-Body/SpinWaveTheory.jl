@@ -5,7 +5,7 @@ using StaticArrays: SVector, SMatrix, @SMatrix
 using LinearAlgebra: Hermitian, Diagonal, dot, eigen, norm
 using QuantumLattices: ID, Operator, Operators, AbstractUnitSubstitution, RankFilter,  Generator, SimplifiedGenerator, Action, Algorithm, Assignment
 using QuantumLattices: AbstractPID, Lattice, Bonds, OID, Index, SimpleIID, SID, FID, Metric, Table, Hilbert, Spin, Fock, Term, Boundary, ReciprocalPath, LatticeIndex
-using QuantumLattices: atol, rtol, dtype, indextype, fulltype, idtype, reparameter, add!, sub!, mul!, plain, expand, rcoord, icoord, delta
+using QuantumLattices: atol, rtol, dtype, indextype, fulltype, idtype, reparameter, add!, sub!, mul!, plain, expand, rcoord, icoord, delta, fulltype
 using TightBindingApproximation: TBAKind, AbstractTBA, TBAMatrix
 
 import QuantumLattices: optype, contentnames, update!, matrix!, statistics, dimension, prepare!, run!
@@ -224,12 +224,12 @@ function run!(lswt::Algorithm{<:LSWT}, ins::Assignment{<:InelasticNeutronSpectra
             end
         end
     end
-    @assert isapprox(norm(imag(data)), 0, atol=atol, rtol=rtol) "run! error: not  negligible imaginary part."
+    isapprox(norm(imag(data)), 0, atol=atol, rtol=rtol) || @warn "run! warning: not negligible imaginary part ($(norm(imag(data))))."
     ins.data[3][:, :] .= real(data)[:, :]
     ins.action.log && (ins.data[3][:, :] = log.(ins.data[3].+1))
 end
 function spinoperators(hilbert::Hilbert{<:Spin}, hp::HPTransformation{S, U}) where {S<:Operators, U<:OID{<:Index{<:AbstractPID, <:SID}}}
-    M = Operator{valtype(eltype(S)), Tuple{U}}
+    M = fulltype(Operator, NamedTuple{(:value, :id), Tuple{valtype(eltype(S)), Tuple{U}}})
     x, y, z = Operators{M}(), Operators{M}(), Operators{M}()
     for (pid, spin) in pairs(hilbert)
         rcoord = hp.magneticstructure.cell[LatticeIndex{'R'}(pid)] 
