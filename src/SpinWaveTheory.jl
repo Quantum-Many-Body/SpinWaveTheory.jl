@@ -8,7 +8,7 @@ using QuantumLattices: AbstractPID, Lattice, Bonds, OID, Index, SimpleIID, SID, 
 using QuantumLattices: atol, rtol, dtype, indextype, fulltype, idtype, reparameter, add!, sub!, mul!, plain, expand, rcoord, icoord, delta, fulltype
 using TightBindingApproximation: TBAKind, AbstractTBA, TBAMatrix
 
-import QuantumLattices: optype, contentnames, update!, matrix!, statistics, dimension, prepare!, run!
+import QuantumLattices: optype, contentnames, update!, matrix, matrix!, statistics, dimension, prepare!, run!
 import TightBindingApproximation: commutator
 
 export rotation, MagneticStructure, HPTransformation
@@ -136,10 +136,12 @@ end
 @inline Base.eltype(T::Type{<:LSWT}) = eltype(fieldtype(T, :H₂))
 @inline dimension(lswt::LSWT) = length(lswt.H₂.table)
 @inline statistics(::Type{<:LSWT}) = :b
-@inline function update!(lswt::LSWT; kwargs...)
-    update!(lswt.H; kwargs...)
-    update!(lswt.H₀; kwargs...)
-    update!(lswt.H₂; kwargs...)
+@inline function update!(lswt::LSWT; k=nothing, kwargs...)
+    if length(kwargs)>0
+        update!(lswt.H; kwargs...)
+        update!(lswt.H₀; kwargs...)
+        update!(lswt.H₂; kwargs...)
+    end
     return lswt
 end
 
@@ -155,14 +157,13 @@ Construct a LSWT.
 end
 
 """
-    matrix!(lswt::LSWT; k=nothing, atol=atol/5, kwargs...) -> TBAMatrix
+    matrix(lswt::LSWT; k=nothing, atol=atol/5, kwargs...) -> TBAMatrix
 
 Get the tight-binding matrix representation of the linear spin waves.
 
 Here, the `atol` parameter is used to ensure that the matrix is positive-definite so that the Cholesky decomposition can be performed numerically.
 """
-function matrix!(lswt::LSWT; k=nothing, atol=atol/5, kwargs...)
-    length(kwargs)>0 && update!(lswt; kwargs...)
+function matrix(lswt::LSWT; k=nothing, atol=atol/5, kwargs...)
     table = lswt.H₂.table
     result = zeros(valtype(lswt, k), dimension(lswt), dimension(lswt))
     for op in expand(lswt.H₂)
@@ -209,8 +210,9 @@ function run!(lswt::Algorithm{<:LSWT}, ins::Assignment{<:InelasticNeutronSpectra
     m = zeros(promote_type(valtype(lswt.engine), Complex{Int}), dimension(lswt.engine), dimension(lswt.engine))
     data = zeros(Complex{Float64}, size(ins.data[3]))
     for (i, params) in enumerate(ins.action.path)
-        @timeit lswt.timer "matrix" (matrix = matrix!(lswt.engine; params...))
-        @timeit lswt.timer "eigen" ((eigenvalues, eigenvectors) = eigen(matrix))
+        update!(lswt; params...)
+        @timeit lswt.timer "matrix" (mr = matrix(lswt.engine; params...))
+        @timeit lswt.timer "eigen" ((eigenvalues, eigenvectors) = eigen(mr))
         @timeit lswt.timer "spectra" for α=1:3, β=1:3
             factor = delta(α, β) - ((norm(params.k)==0 || α>length(params.k) || β>length(params.k)) ? 0 : params.k[α]*params.k[β]/dot(params.k, params.k))
             if !isapprox(abs(factor), 0, atol=atol, rtol=rtol)

@@ -12,12 +12,12 @@ using TightBindingApproximation
 using SpinWaveTheory
 using Plots
 
-lattice = Lattice("Square", [Point(PID(1), (0.0, 0.0), (0.0, 0.0))],
+lattice = Lattice(:Square, [Point(PID(1), (0.0, 0.0), (0.0, 0.0))],
     vectors=[[1.0, 0.0], [0.0, 1.0]],
     neighbors=1
     )
 
-cell = Lattice("MagneticCell", [
+cell = Lattice(:MagneticCell, [
         Point(PID(1), (0.0, 0.0), (0.0, 0.0)),
         Point(PID(2), (1.0, 0.0), (0.0, 0.0))
         ],
@@ -34,13 +34,13 @@ magneticstructure = MagneticStructure(cell,
     Dict(pid=>(iseven(pid.site) ? [0, 0, 1] : [0, 0, -1]) for pid in cell.pids)
     )
 
-antiferromagnet = Algorithm("SquareAFM", LSWT(lattice, hilbert, (J, h), magneticstructure))
+antiferromagnet = Algorithm(:SquareAFM, LSWT(lattice, hilbert, (J, h), magneticstructure))
 
 path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=100)
-ins = register!(antiferromagnet, :INS,
+ins = antiferromagnet(:INS,
     InelasticNeutronSpectra(path, range(0.0, 2.5, length=251); η=0.1, log=true)
     )
-energybands = register!(antiferromagnet, :EB, EnergyBands(path))
+energybands = antiferromagnet(:EB, EnergyBands(path))
 
 plt = plot()
 plot!(plt, ins)

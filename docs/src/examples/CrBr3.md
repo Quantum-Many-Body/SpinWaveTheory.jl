@@ -30,7 +30,7 @@ function gamma(bond)
     error("kitaev error: wrong $theta.")
 end
 
-lattice = Lattice( "H2", [
+lattice = Lattice(:H2, [
                 Point(PID(1), (0.0, 0.0), (0.0, 0.0)),
                 Point(PID(2), (0.0, √3/3), (0.0, 0.0))
                 ],
@@ -46,13 +46,13 @@ K = SpinTerm(:K, -4.288, 1, couplings=kitaev, modulate=true)
 Γ = SpinTerm(:Γ, -0.044, 1, couplings=gamma, modulate=true)
 
 magneticstructure = MagneticStructure(lattice, Dict(pid=>[1, 1, 1] for pid in lattice.pids))
-CrBr3 = Algorithm("CrBr3", LSWT(lattice, hilbert, (J₁, J₂, J₃, K, Γ), magneticstructure))
+CrBr3 = Algorithm(:CrBr3, LSWT(lattice, hilbert, (J₁, J₂, J₃, K, Γ), magneticstructure))
 path = ReciprocalPath(lattice.reciprocals, (-2, -1)=>(2, 1), length=400)
 
-ins = register!(CrBr3, :INS,
+ins = CrBr3(:INS,
     InelasticNeutronSpectra(path, range(0.0, 15.0, length=301); η=0.5, log=true)
     )
-eb = register!(CrBr3, :EB, EnergyBands(path))
+eb = CrBr3(:EB, EnergyBands(path))
 plt = plot()
 plot!(plt, ins)
 plot!(plt, eb, color=:white, linestyle=:dash)
