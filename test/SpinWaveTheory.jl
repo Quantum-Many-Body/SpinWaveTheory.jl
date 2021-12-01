@@ -3,7 +3,8 @@ using QuantumLattices: Lattice, Point, PID, Hilbert, Spin, SpinTerm, @heisenberg
 using TightBindingApproximation: EnergyBands
 
 @testset "SquareFM" begin
-    lattice = Lattice(:Square, [Point(PID(1), (0.0, 0.0), (0.0, 0.0))],
+    lattice = Lattice(:Square,
+        [Point(PID(1), [0.0, 0.0])],
         vectors=[[1.0, 0.0], [0.0, 1.0]],
         neighbors=1
         )

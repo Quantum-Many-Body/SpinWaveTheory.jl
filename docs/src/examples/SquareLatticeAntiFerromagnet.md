@@ -12,15 +12,14 @@ using TightBindingApproximation
 using SpinWaveTheory
 using Plots
 
-lattice = Lattice(:Square, [Point(PID(1), (0.0, 0.0), (0.0, 0.0))],
+lattice = Lattice(:Square,
+    [Point(PID(1), [0.0, 0.0])],
     vectors=[[1.0, 0.0], [0.0, 1.0]],
     neighbors=1
     )
 
-cell = Lattice(:MagneticCell, [
-        Point(PID(1), (0.0, 0.0), (0.0, 0.0)),
-        Point(PID(2), (1.0, 0.0), (0.0, 0.0))
-        ],
+cell = Lattice(:MagneticCell,
+    [Point(PID(1), [0.0, 0.0]), Point(PID(2), [1.0, 0.0])],
     vectors=[[1.0, 1.0], [1.0, -1.0]],
     neighbors=1
     )

@@ -30,13 +30,11 @@ function gamma(bond)
     error("kitaev error: wrong $theta.")
 end
 
-lattice = Lattice(:H2, [
-                Point(PID(1), (0.0, 0.0), (0.0, 0.0)),
-                Point(PID(2), (0.0, √3/3), (0.0, 0.0))
-                ],
-            vectors=[[1.0, 0.0], [0.5, √3/2]],
-            neighbors=3
-            )
+lattice = Lattice(:H2,
+    [Point(PID(1), (0.0, 0.0)), Point(PID(2), (0.0, √3/3))],
+    vectors=[[1.0, 0.0], [0.5, √3/2]],
+    neighbors=3
+    )
 hilbert = Hilbert(pid=>Spin{3//2}(1) for pid in lattice.pids)
 
 J₁ = SpinTerm(:J₁, 0.0, 1, couplings=heisenberg"xyz", modulate=true)
