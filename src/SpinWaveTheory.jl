@@ -5,7 +5,7 @@ using StaticArrays: SVector, SMatrix, @SMatrix
 using LinearAlgebra: Hermitian, Diagonal, dot, eigen, norm
 using QuantumLattices: ID, Operator, Operators, AbstractUnitSubstitution, RankFilter,  Generator, SimplifiedGenerator, Action, Algorithm, Assignment
 using QuantumLattices: AbstractPID, Lattice, Bonds, OID, Index, SimpleIID, SID, FID, Metric, Table, Hilbert, Spin, Fock, Term, Boundary, ReciprocalPath, LatticeIndex
-using QuantumLattices: atol, rtol, dtype, indextype, fulltype, idtype, reparameter, add!, sub!, mul!, plain, expand, rcoord, icoord, delta, fulltype
+using QuantumLattices: atol, rtol, dtype, indextype, fulltype, idtype, reparameter, add!, sub!, mul!, plain, rcoord, icoord, delta, fulltype
 using TightBindingApproximation: TBAKind, AbstractTBA, TBAMatrix
 
 import QuantumLattices: optype, contentnames, update!, matrix, matrix!, statistics, dimension, prepare!, run!
@@ -166,7 +166,7 @@ Here, the `atol` parameter is used to ensure that the matrix is positive-definit
 function matrix(lswt::LSWT; k=nothing, atol=atol/5, kwargs...)
     table = lswt.H₂.table
     result = zeros(valtype(lswt, k), dimension(lswt), dimension(lswt))
-    for op in expand(lswt.H₂)
+    for op in lswt.H₂
         if op[1]==op[2]'
             seq₁ = table[op[1].index]
             seq₂ = table[op[2].index]
