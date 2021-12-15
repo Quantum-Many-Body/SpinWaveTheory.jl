@@ -110,18 +110,25 @@ Get the corresponding Hilbert space of the original one after the Holstein-Prima
     return Hilbert(pid=>Fock{:b}(norbital=hilbert[pid].norbital, nspin=1, nnambu=2) for pid in magneticstructure.cell.pids)
 end
 
+# When the type of the field `commutator` is a type parameter of `LSWT`, a strange bug would occur when the terms of a quantum
+# spin system include both exchange interactions (e.g. the Heisenberg term) and linear onsite interactions (e.g. the potential
+# energy under an external magnetic field). This bug does not exist for QuantumLattices@v0.8.6 and SpinWaveTheory@v0.1.1, but
+# does for QuantumLattices@v0.8.9 and SpinWaveTheory@v0.1.2. This bug can be fixed by removing the type of the field `commutator`
+# as a type parameter of `LSWT` (After several tries, I found this solution although I still don't know why. I guess it may be
+# caused by a Julia bug.). This may cause a little bit of type instability but it turns out to be unimportant because the total
+# time of the code execution is at most of several seconds, which differs little compared to previous versions.
 """
-    LSWT{L<:Lattice, H<:Generator, HP<:HPTransformation, E<:Image, F<:Image, G<:AbstractMatrix} <: AbstractTBA{TBAKind(:BdG), H, G}
+    LSWT{L<:Lattice, H<:Generator, HP<:HPTransformation, E<:Image, F<:Image} <: AbstractTBA{TBAKind(:BdG), H, AbstractMatrix}
 
 Linear spin wave theory for magnetically ordered quantum lattice systems.
 """
-struct LSWT{L<:Lattice, H<:Generator, HP<:HPTransformation, E<:Image, F<:Image, G<:AbstractMatrix} <: AbstractTBA{TBAKind(:BdG), H, G}
+struct LSWT{L<:Lattice, H<:Generator, HP<:HPTransformation, E<:Image, F<:Image} <: AbstractTBA{TBAKind(:BdG), H, AbstractMatrix}
     lattice::L
     H::H
     hp::HP
     H₀::E
     H₂::F
-    commutator::G
+    commutator::AbstractMatrix
     function LSWT(lattice::Lattice, H::Generator, hp::HPTransformation)
         temp = hp(H)
         hilbert = Hilbert(H.hilbert, hp.magneticstructure)
@@ -129,7 +136,7 @@ struct LSWT{L<:Lattice, H<:Generator, HP<:HPTransformation, E<:Image, F<:Image, 
         H₀ = RankFilter(0)(temp, table=table)
         H₂ = RankFilter(2)(temp, table=table)
         commt = commutator(TBAKind(:BdG), hilbert)
-        new{typeof(lattice), typeof(H), typeof(hp), typeof(H₀), typeof(H₂), typeof(commt)}(lattice, H, hp, H₀, H₂, commt)
+        new{typeof(lattice), typeof(H), typeof(hp), typeof(H₀), typeof(H₂)}(lattice, H, hp, H₀, H₂, commt)
     end
 end
 @inline contentnames(::Type{<:LSWT}) = (:lattice, :H, :hp, :H₀, :H₂, :commutator)
