@@ -3,7 +3,7 @@ module SpinWaveTheory
 using TimerOutputs: @timeit
 using StaticArrays: SVector, SMatrix, @SMatrix
 using LinearAlgebra: Hermitian, Diagonal, dot, eigen, norm
-using QuantumLattices: ID, Operator, Operators, AbstractUnitSubstitution, RankFilter,  Generator, SimplifiedGenerator, Action, Algorithm, Assignment
+using QuantumLattices: ID, Operator, Operators, AbstractUnitSubstitution, RankFilter,  Generator, Image, Action, Algorithm, Assignment
 using QuantumLattices: AbstractPID, Lattice, Bonds, OID, Index, SimpleIID, SID, FID, Metric, Table, Hilbert, Spin, Fock, Term, Boundary, ReciprocalPath, LatticeIndex
 using QuantumLattices: atol, rtol, dtype, indextype, fulltype, idtype, reparameter, add!, sub!, mul!, plain, rcoord, icoord, delta, fulltype
 using TightBindingApproximation: TBAKind, AbstractTBA, TBAMatrix
@@ -111,11 +111,11 @@ Get the corresponding Hilbert space of the original one after the Holstein-Prima
 end
 
 """
-    LSWT{L<:Lattice, H<:Generator, HP<:HPTransformation, E<:SimplifiedGenerator, F<:SimplifiedGenerator, G<:AbstractMatrix} <: AbstractTBA{TBAKind(:BdG), H, G}
+    LSWT{L<:Lattice, H<:Generator, HP<:HPTransformation, E<:Image, F<:Image, G<:AbstractMatrix} <: AbstractTBA{TBAKind(:BdG), H, G}
 
 Linear spin wave theory for magnetically ordered quantum lattice systems.
 """
-struct LSWT{L<:Lattice, H<:Generator, HP<:HPTransformation, E<:SimplifiedGenerator, F<:SimplifiedGenerator, G<:AbstractMatrix} <: AbstractTBA{TBAKind(:BdG), H, G}
+struct LSWT{L<:Lattice, H<:Generator, HP<:HPTransformation, E<:Image, F<:Image, G<:AbstractMatrix} <: AbstractTBA{TBAKind(:BdG), H, G}
     lattice::L
     H::H
     hp::HP
@@ -133,7 +133,7 @@ struct LSWT{L<:Lattice, H<:Generator, HP<:HPTransformation, E<:SimplifiedGenerat
     end
 end
 @inline contentnames(::Type{<:LSWT}) = (:lattice, :H, :hp, :H₀, :H₂, :commutator)
-@inline Base.eltype(T::Type{<:LSWT}) = eltype(fieldtype(T, :H₂))
+@inline Base.valtype(T::Type{<:LSWT}) = valtype(eltype(fieldtype(T, :H₂)))
 @inline dimension(lswt::LSWT) = length(lswt.H₂.table)
 @inline statistics(::Type{<:LSWT}) = :b
 @inline function update!(lswt::LSWT; k=nothing, kwargs...)
