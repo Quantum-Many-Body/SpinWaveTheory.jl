@@ -3,12 +3,12 @@ module SpinWaveTheory
 using TimerOutputs: @timeit
 using StaticArrays: SVector, SMatrix, @SMatrix
 using LinearAlgebra: Hermitian, Diagonal, dot, eigen, norm
-using QuantumLattices: ID, Operator, Operators, AbstractUnitSubstitution, RankFilter,  Generator, Image, Action, Algorithm, Assignment
+using QuantumLattices: ID, CompositeOID, Operator, Operators, AbstractUnitSubstitution, RankFilter,  Generator, Image, Action, Algorithm, Assignment
 using QuantumLattices: AbstractPID, Lattice, Bonds, OID, Index, SimpleIID, SID, FID, Metric, Table, Hilbert, Spin, Fock, Term, Boundary, ReciprocalPath, LatticeIndex
-using QuantumLattices: atol, rtol, dtype, indextype, fulltype, idtype, reparameter, add!, sub!, mul!, plain, rcoord, icoord, delta, fulltype
-using TightBindingApproximation: TBAKind, AbstractTBA, TBAMatrix
+using QuantumLattices: atol, rtol, dtype, indextype, fulltype, idtype, reparameter, sub!, mul!, expand, plain, rcoord, icoord, delta, fulltype
+using TightBindingApproximation: TBAKind, AbstractTBA, TBAMatrix, TBAMatrixRepresentation
 
-import QuantumLattices: optype, contentnames, update!, matrix, matrix!, statistics, dimension, prepare!, run!
+import QuantumLattices: optype, contentnames, update!, matrix, matrix!, add!, dimension, prepare!, run!
 import TightBindingApproximation: commutator
 
 export rotation, MagneticStructure, HPTransformation
@@ -53,11 +53,12 @@ Construct the magnetic structure on a given lattice with the given moments.
 function MagneticStructure(cell::Lattice, moments::Dict{<:AbstractPID, <:AbstractVector})
     @assert length(cell)==length(moments) "MagneticStructure error: mismatched magnetic cell and moments."
     datatype = promote_type(dtype(cell), eltype(valtype(moments)))
+    moments = convert(Dict{keytype(moments), SVector{3, datatype}}, moments)
     rotations = Dict{keytype(moments), SMatrix{3, 3, datatype, 9}}()
     for pid in cell.pids
         rotations[pid] = rotation(moments[pid])
     end
-    return MagneticStructure(cell, convert(Dict{keytype(moments), SVector{3, datatype}}, moments), rotations)
+    return MagneticStructure(cell, moments, rotations)
 end
 
 """
@@ -84,6 +85,7 @@ end
     U = reparameter(eltype(eltype(S)), :index, I)
     M = fulltype(eltype(S), NamedTuple{(:value, :id), Tuple{V, ID{U}}})
 end
+@inline (hp::HPTransformation)(oid::OID; kwargs...) = Operator(1, oid)
 function (hp::HPTransformation)(oid::OID{<:Index{<:AbstractPID, <:SID{S}}}; zoff::Bool=false) where S
     datatype = valtype(eltype(valtype(hp)))
     factor = √(2*S*one(datatype))/2
@@ -142,7 +144,6 @@ end
 @inline contentnames(::Type{<:LSWT}) = (:lattice, :H, :hp, :H₀, :H₂, :commutator)
 @inline Base.valtype(T::Type{<:LSWT}) = valtype(eltype(fieldtype(T, :H₂)))
 @inline dimension(lswt::LSWT) = length(lswt.H₂.table)
-@inline statistics(::Type{<:LSWT}) = :b
 @inline function update!(lswt::LSWT; k=nothing, kwargs...)
     if length(kwargs)>0
         update!(lswt.H; kwargs...)
@@ -164,30 +165,50 @@ Construct a LSWT.
 end
 
 """
-    matrix(lswt::LSWT; k=nothing, atol=atol/5, kwargs...) -> TBAMatrix
+    matrix(lswt::LSWT; k=nothing, gauge=:icoord, atol=atol/5, kwargs...) -> TBAMatrix
 
 Get the tight-binding matrix representation of the linear spin waves.
 
 Here, the `atol` parameter is used to ensure that the matrix is positive-definite so that the Cholesky decomposition can be performed numerically.
 """
-function matrix(lswt::LSWT; k=nothing, atol=atol/5, kwargs...)
-    table = lswt.H₂.table
-    result = zeros(valtype(lswt, k), dimension(lswt), dimension(lswt))
-    for op in lswt.H₂
-        if op[1]==op[2]'
-            seq₁ = table[op[1].index]
-            seq₂ = table[op[2].index]
-            result[seq₁, seq₁] += op.value+atol
-            result[seq₂, seq₂] += op.value+atol
-        else
-            phase = isnothing(k) ? one(valtype(lswt, k)) : convert(valtype(lswt, k), exp(-1im*dot(k, icoord(op))))
-            seq₁ = table[op[1].index']
-            seq₂ = table[op[2].index]
-            result[seq₁, seq₂] += op.value*phase
-            result[seq₂, seq₁] += op.value'*phase'
-        end
+@inline function matrix(lswt::LSWT; k=nothing, gauge=:icoord, atol=atol/5, kwargs...)
+    return TBAMatrix(Hermitian(TBAMatrixRepresentation(lswt, k, gauge)(expand(lswt.H₂); atol=atol, kwargs...)), lswt.commutator)
+end
+
+"""
+    TBAMatrixRepresentation(lswt::LSWT, k=nothing, gauge::Symbol=:icoord)
+
+Construct the matrix representation transformation of a quantum spin system using the linear spin wave theory.
+"""
+@inline function TBAMatrixRepresentation(lswt::LSWT, k=nothing, gauge::Symbol=:icoord)
+    return TBAMatrixRepresentation{typeof(lswt)}(k, lswt.H₂.table, gauge)
+end
+
+"""
+    add!(dest::Matrix,
+        mr::TBAMatrixRepresentation{<:LSWT},
+        m::Operator{<:Number, <:ID{CompositeOID{<:Index{<:AbstractPID, <:FID{:b}}}}};
+        atol=atol/5,
+        kwargs...
+        ) -> typeof(dest)
+
+Get the matrix representation of an operator and add it to destination.
+"""
+function add!(dest::Matrix, mr::TBAMatrixRepresentation{<:LSWT}, m::Operator{<:Number, <:ID{CompositeOID{<:Index{<:AbstractPID, <:FID{:b}}}}}; atol=atol/5, kwargs...)
+    if m[1]==m[2]'
+        seq₁ = mr.table[m[1].index]
+        seq₂ = mr.table[m[2].index]
+        dest[seq₁, seq₁] += m.value+atol
+        dest[seq₂, seq₂] += m.value+atol
+    else
+        coord = mr.gauge==:rcoord ? rcoord(m) : icoord(m)
+        phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(-1im*dot(mr.k, coord)))
+        seq₁ = mr.table[m[1].index']
+        seq₂ = mr.table[m[2].index]
+        dest[seq₁, seq₂] += m.value*phase
+        dest[seq₂, seq₁] += m.value'*phase'
     end
-    return TBAMatrix(Hermitian(result), lswt.commutator)
+    return dest
 end
 
 """
