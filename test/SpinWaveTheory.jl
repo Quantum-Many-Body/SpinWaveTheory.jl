@@ -16,7 +16,7 @@ using TightBindingApproximation: EnergyBands
     data = lswt(:EB, EnergyBands(path))[2].data[2]
 
     A(; k) = 2-cos(k[1])-cos(k[2])
-    for (i, params) in enumerate(path)
+    for (i, params) in enumerate(pairs(path))
         @test isapprox(A(; params...), data[i, 1], atol=atol)
         @test isapprox(A(; params...), data[i, 2], atol=atol)
     end

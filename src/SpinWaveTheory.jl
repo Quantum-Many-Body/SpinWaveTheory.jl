@@ -237,7 +237,7 @@ function run!(lswt::Algorithm{<:LSWT}, ins::Assignment{<:InelasticNeutronSpectra
     operators = spinoperators(lswt.engine.H.hilbert, lswt.engine.hp)
     m = zeros(promote_type(valtype(lswt.engine), Complex{Int}), dimension(lswt.engine), dimension(lswt.engine))
     data = zeros(Complex{Float64}, size(ins.data[3]))
-    for (i, params) in enumerate(ins.action.path)
+    for (i, params) in enumerate(pairs(ins.action.path))
         update!(lswt; params...)
         @timeit lswt.timer "matrix" (mr = matrix(lswt.engine; params...))
         @timeit lswt.timer "eigen" ((eigenvalues, eigenvectors) = eigen(mr))

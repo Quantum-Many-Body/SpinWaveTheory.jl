@@ -10,7 +10,7 @@ The following codes could compute the spin wave dispersions of the ferromagnetic
 using QuantumLattices
 using TightBindingApproximation
 using SpinWaveTheory
-using Plots
+using Plots; pyplot()
 
 lattice = Lattice(:Square,
     [Point(PID(1), [0.0, 0.0])],
