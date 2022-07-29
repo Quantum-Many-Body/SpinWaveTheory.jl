@@ -39,15 +39,15 @@ function rotation(destination::AbstractVector{<:Number})
                      cosθ*sinφ  cosφ sinθ*sinφ;
                          -sinθ     0      cosθ]
 end
-# function rotation(thetaphi::AbstractVector{<:Number})
-#     @assert length(thetaphi)==2 "rotation error: thetaphi vector must be 2-dimensional."
-#     θ₁, ϕ₁ = thetaphi[1], thetaphi[2]
-#     cosθ, sinθ = cos(θ₁), sin(θ₁)
-#     cosφ, sinφ = cos(ϕ₁), sin(ϕ₁)
-#     return @SMatrix [cosθ*cosφ -sinφ sinθ*cosφ;
-#     cosθ*sinφ  cosφ sinθ*sinφ;
-#         -sinθ     0      cosθ]
-# end
+function rotation(thetaphi::AbstractVector{<:Number})
+    @assert length(thetaphi)==2 "rotation error: thetaphi vector must be 2-dimensional."
+    θ₁, ϕ₁ = thetaphi[1], thetaphi[2]
+    cosθ, sinθ = cos(θ₁), sin(θ₁)
+    cosφ, sinφ = cos(ϕ₁), sin(ϕ₁)
+    return @SMatrix [cosθ*cosφ -sinφ sinθ*cosφ;
+    cosθ*sinφ  cosφ sinθ*sinφ;
+        -sinθ     0      cosθ]
+end
 """
     MagneticStructure{L<:Lattice, P<:AbstractPID, D<:Number}
 
