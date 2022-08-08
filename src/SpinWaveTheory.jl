@@ -17,23 +17,28 @@ export LSWT, InelasticNeutronSpectra
 """
     rotation(destination::AbstractVector{<:Number}) -> SMatrix{3, 3}
 
-Get the rotation matrix which rotates the `[0, 0, 1]` vector to the direction of the `destination` vector.
+Get the rotation matrix which rotates the `[0, 0, 1]` or `[θ, ϕ]` vector to the direction of the `destination` vector.
 """
 function rotation(destination::AbstractVector{<:Number})
-    @assert length(destination)==3 "rotation error: destination vector must be 3-dimensional."
-    x, y, z = destination[1], destination[2], destination[3]
-    lenxy, lenxyz = √(x^2+y^2), √(x^2+y^2+z^2)
-    cosθ, sinθ = z/lenxyz, lenxy/lenxyz
-    cosφ, sinφ = if isapprox(lenxy, 0, atol=atol, rtol=rtol)
-        one(eltype(destination)), zero(eltype(destination))
+    @assert length(destination)==3 || length(destination)==2 "rotation error: destination vector must be 3(or 2)-dimensional."
+    if length(destination) == 3
+        x, y, z = destination[1], destination[2], destination[3]
+        lenxy, lenxyz = √(x^2+y^2), √(x^2+y^2+z^2)
+        cosθ, sinθ = z/lenxyz, lenxy/lenxyz
+        cosφ, sinφ = if isapprox(lenxy, 0, atol=atol, rtol=rtol)
+            one(eltype(destination)), zero(eltype(destination))
+        else
+            x/lenxy, y/lenxy
+        end
     else
-        x/lenxy, y/lenxy
+        θ₁, ϕ₁ = destination[1], destination[2]
+        cosθ, sinθ = cos(θ₁), sin(θ₁)
+        cosφ, sinφ = cos(ϕ₁), sin(ϕ₁)
     end
     return @SMatrix [cosθ*cosφ -sinφ sinθ*cosφ;
                      cosθ*sinφ  cosφ sinθ*sinφ;
                          -sinθ     0      cosθ]
 end
-
 """
     MagneticStructure{L<:Lattice, P<:AbstractPID, D<:Number}
 
@@ -41,7 +46,8 @@ The magnetic structure of an ordered quantum lattice system.
 """
 struct MagneticStructure{L<:Lattice, P<:AbstractPID, D<:Number}
     cell::L
-    moments::Dict{P, SVector{3, D}}
+    # moments::Dict{P, SVector{3, D}}
+    moments::Dict{P, Vector{D}}
     rotations::Dict{P, SMatrix{3, 3, D, 9}}
 end
 
@@ -53,7 +59,8 @@ Construct the magnetic structure on a given lattice with the given moments.
 function MagneticStructure(cell::Lattice, moments::Dict{<:AbstractPID, <:AbstractVector})
     @assert length(cell)==length(moments) "MagneticStructure error: mismatched magnetic cell and moments."
     datatype = promote_type(dtype(cell), eltype(valtype(moments)))
-    moments = convert(Dict{keytype(moments), SVector{3, datatype}}, moments)
+    moments = convert(Dict{keytype(moments), Vector{datatype}}, moments)
+    # moments = convert(Dict{keytype(moments), SVector{3, datatype}}, moments)
     rotations = Dict{keytype(moments), SMatrix{3, 3, datatype, 9}}()
     for pid in cell.pids
         rotations[pid] = rotation(moments[pid])

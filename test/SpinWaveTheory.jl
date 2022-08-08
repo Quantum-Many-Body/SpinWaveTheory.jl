@@ -11,7 +11,8 @@ using TightBindingApproximation: EnergyBands
         )
     hilbert = Hilbert(pid=>Spin{1//2}(1) for pid in lattice.pids)
     J = SpinTerm(:J, -1.0, 1, heisenberg"xyz")
-    ms = MagneticStructure(lattice, Dict(pid=>[0, 0, 1] for pid in lattice.pids))
+    # ms = MagneticStructure(lattice, Dict(pid=>[0, 0, 1] for pid in lattice.pids))
+    ms = MagneticStructure(lattice, Dict(pid=>[0, π] for pid in lattice.pids))
     lswt = Algorithm(:FM, LSWT(lattice, hilbert, (J,), ms))
 
     path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=8)
