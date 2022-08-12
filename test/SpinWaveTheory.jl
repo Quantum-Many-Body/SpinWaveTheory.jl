@@ -1,7 +1,7 @@
 using SpinWaveTheory
 using Plots: plot, plot!, savefig
 using QuantumLattices: Lattice, Point, PID, Hilbert, Spin, SpinTerm, @heisenberg_str, Algorithm, ReciprocalPath, @rectangle_str, atol
-using TightBindingApproximation: EnergyBands
+using TightBindingApproximation: EnergyBands, InelasticNeutronScatteringSpectra
 
 @testset "SquareFM" begin
     lattice = Lattice(:Square,
@@ -11,9 +11,10 @@ using TightBindingApproximation: EnergyBands
         )
     hilbert = Hilbert(pid=>Spin{1//2}(1) for pid in lattice.pids)
     J = SpinTerm(:J, -1.0, 1, heisenberg"xyz")
-    # ms = MagneticStructure(lattice, Dict(pid=>[0, 0, 1] for pid in lattice.pids))
-    ms = MagneticStructure(lattice, Dict(pid=>[0, π] for pid in lattice.pids))
-    lswt = Algorithm(:FM, LSWT(lattice, hilbert, (J,), ms))
+    ms₁ = MagneticStructure(lattice, Dict(pid=>[0, 0, 1] for pid in lattice.pids))
+    ms₂ = MagneticStructure(lattice, Dict(pid=>[0, 0] for pid in lattice.pids))
+    @test ms₁.rotations == ms₂.rotations
+    lswt = Algorithm(:FM, LSWT(lattice, hilbert, (J,), ms₂))
 
     path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=8)
     data = lswt(:EBS, EnergyBands(path))[2].data[2]
@@ -25,7 +26,7 @@ using TightBindingApproximation: EnergyBands
 
     path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=100)
     ebs = lswt(:EBS, EnergyBands(path))
-    ins = lswt(:INS, InelasticNeutronSpectra(path, range(0.0, 5.0, length=501); η=0.3, log=true))
+    ins = lswt(:INS, InelasticNeutronScatteringSpectra(path, range(0.0, 5.0, length=501); η=0.3, log=true))
     plt = plot()
     plot!(plt, ins)
     plot!(plt, ebs, color=:white, linestyle=:dash)

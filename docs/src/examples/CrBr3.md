@@ -50,7 +50,7 @@ CrBr3 = Algorithm(:CrBr3, LSWT(lattice, hilbert, (J₁, J₂, J₃, K, Γ), magn
 path = ReciprocalPath(lattice.reciprocals, (-2, -1)=>(2, 1), length=400)
 
 ins = CrBr3(:INS,
-    InelasticNeutronSpectra(path, range(0.0, 15.0, length=301); η=0.5, log=true)
+    InelasticNeutronScatteringSpectra(path, range(0.0, 15.0, length=301); η=0.5, log=true)
     )
 eb = CrBr3(:EB, EnergyBands(path))
 plt = plot()
