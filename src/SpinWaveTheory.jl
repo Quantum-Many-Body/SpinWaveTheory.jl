@@ -1,17 +1,25 @@
 module SpinWaveTheory
 
-using TimerOutputs: @timeit
+using LinearAlgebra: Diagonal, Hermitian, dot, eigen, norm
+using QuantumLattices: dtype, expand, mul!, sub!
+using QuantumLattices: plain, Boundary, CompositeIndex, Hilbert, Index, OperatorUnitToTuple, SimpleIID, Table, Term, indextype
+using QuantumLattices: Action, Algorithm, Assignment, Image, OperatorGenerator
+using QuantumLattices: AbstractUnitSubstitution, ID, Operator, Operators, RankFilter, idtype
+using QuantumLattices: FID, Fock, SID, Spin
+using QuantumLattices: AbstractLattice, Neighbors, bonds, icoordinate, rcoordinate
+using QuantumLattices: atol, rtol, delta, fulltype, reparameter
 using StaticArrays: SVector, SMatrix, @SMatrix
-using LinearAlgebra: Hermitian, Diagonal, dot, eigen, norm
-using QuantumLattices: ID, CompositeOID, Operator, Operators, AbstractUnitSubstitution, RankFilter,  Generator, Image, Action, Algorithm, Assignment
-using QuantumLattices: AbstractPID, Lattice, Bonds, OID, OIDToTuple, Index, SimpleIID, SID, FID, Table, Hilbert, Spin, Fock, Term, Boundary, LatticeIndex
-using QuantumLattices: atol, rtol, dtype, indextype, fulltype, idtype, reparameter, sub!, mul!, expand, plain, rcoord, icoord, delta, fulltype
-using TightBindingApproximation: TBAKind, AbstractTBA, TBAMatrix, TBAMatrixRepresentation, InelasticNeutronScatteringSpectra
+using TightBindingApproximation: AbstractTBA, InelasticNeutronScatteringSpectra, TBAKind, TBAMatrix, TBAMatrixRepresentation
+using TimerOutputs: @timeit
 
-import QuantumLattices: Metric, optype, contentnames, update!, matrix, matrix!, add!, dimension, run!
+import QuantumLattices: add!, dimension, matrix, matrix!, update!
+import QuantumLattices: Metric
+import QuantumLattices: run!
+import QuantumLattices: optype
+import QuantumLattices: contentnames
 import TightBindingApproximation: commutator
 
-export rotation, MagneticStructure, HPTransformation, Magnonic, LSWT
+export HPTransformation, LSWT, MagneticStructure, Magnonic, rotation
 
 """
     rotation(destination::AbstractVector{<:Number}) -> SMatrix{3, 3}
@@ -40,38 +48,38 @@ function rotation(destination::AbstractVector{<:Number})
 end
 
 """
-    MagneticStructure{L<:Lattice, P<:AbstractPID, D<:Number}
+    MagneticStructure{L<:AbstractLattice, D<:Number}
 
 The magnetic structure of an ordered quantum lattice system.
 """
-struct MagneticStructure{L<:Lattice, P<:AbstractPID, D<:Number}
+struct MagneticStructure{L<:AbstractLattice, D<:Number}
     cell::L
-    moments::Dict{P, Vector{D}}
-    rotations::Dict{P, SMatrix{3, 3, D, 9}}
+    moments::Dict{Int, Vector{D}}
+    rotations::Dict{Int, SMatrix{3, 3, D, 9}}
 end
 
 """
-    MagneticStructure(cell::Lattice, moments::Dict{<:AbstractPID, <:AbstractVector})
+    MagneticStructure(cell::AbstractLattice, moments::Dict{Int, <:AbstractVector})
 
 Construct the magnetic structure on a given lattice with the given moments.
 """
-function MagneticStructure(cell::Lattice, moments::Dict{<:AbstractPID, <:AbstractVector})
+function MagneticStructure(cell::AbstractLattice, moments::Dict{Int, <:AbstractVector})
     @assert length(cell)==length(moments) "MagneticStructure error: mismatched magnetic cell and moments."
     datatype = promote_type(dtype(cell), eltype(valtype(moments)))
-    moments = convert(Dict{keytype(moments), Vector{datatype}}, moments)
-    rotations = Dict{keytype(moments), SMatrix{3, 3, datatype, 9}}()
-    for pid in cell.pids
-        rotations[pid] = rotation(moments[pid])
+    moments = convert(Dict{Int, Vector{datatype}}, moments)
+    rotations = Dict{Int, SMatrix{3, 3, datatype, 9}}()
+    for site=1:length(cell)
+        rotations[site] = rotation(moments[site])
     end
     return MagneticStructure(cell, moments, rotations)
 end
 
 """
-    HPTransformation{S<:Operators, U<:OID{<:Index{<:AbstractPID, <:SimpleIID}}, M<:MagneticStructure} <: AbstractUnitSubstitution{U, S}
+    HPTransformation{S<:Operators, U<:CompositeIndex{<:Index{Int, <:SimpleIID}}, M<:MagneticStructure} <: AbstractUnitSubstitution{U, S}
 
 Holstein-Primakoff transformation.
 """
-struct HPTransformation{S<:Operators, U<:OID{<:Index{<:AbstractPID, <:SimpleIID}}, M<:MagneticStructure} <: AbstractUnitSubstitution{U, S}
+struct HPTransformation{S<:Operators, U<:CompositeIndex{<:Index{Int, <:SimpleIID}}, M<:MagneticStructure} <: AbstractUnitSubstitution{U, S}
     magneticstructure::M
     function HPTransformation{S}(magneticstructure::MagneticStructure) where {S<:Operators}
         O = optype(HPTransformation, S)
@@ -88,23 +96,23 @@ end
     Iₜ = reparameter(Iₒ, :iid, FID{:b, Int, Int, Int})
     I = Iₜ<:Iₒ ? Iₒ : Iₜ
     U = reparameter(eltype(eltype(S)), :index, I)
-    M = fulltype(eltype(S), NamedTuple{(:value, :id), Tuple{V, ID{U}}})
+    return fulltype(eltype(S), NamedTuple{(:value, :id), Tuple{V, ID{U}}})
 end
-@inline (hp::HPTransformation)(oid::OID; kwargs...) = Operator(1, oid)
-function (hp::HPTransformation)(oid::OID{<:Index{<:AbstractPID, <:SID{S}}}; zoff::Bool=false) where S
+@inline (hp::HPTransformation)(index::CompositeIndex; kwargs...) = Operator(1, index)
+function (hp::HPTransformation)(index::CompositeIndex{<:Index{Int, <:SID{S}}}; zoff::Bool=false) where S
     datatype = valtype(eltype(valtype(hp)))
     factor = √(2*S*one(datatype))/2
-    op₁ = Operator(1, replace(oid, index=replace(oid.index, iid=FID{:b}(oid.index.iid.orbital, 1, 1))))
-    op₂ = Operator(1, replace(oid, index=replace(oid.index, iid=FID{:b}(oid.index.iid.orbital, 1, 2))))
+    op₁ = Operator(1, replace(index, index=replace(index.index, iid=FID{:b}(1, 1, 1))))
+    op₂ = Operator(1, replace(index, index=replace(index.index, iid=FID{:b}(1, 1, 2))))
     xₗ = add!(add!(zero(valtype(hp)), factor*op₁), factor*op₂)
     yₗ = sub!(add!(zero(valtype(hp)), factor*op₁/1im), factor*op₂/1im)
     zₗ = zero(valtype(hp))
     zoff || sub!(add!(zₗ, S), op₂*op₁)
-    x, y, z = hp.magneticstructure.rotations[oid.index.pid]*SVector(xₗ, yₗ, zₗ)
-    oid.index.iid.tag=='x' && return x
-    oid.index.iid.tag=='y' && return y
-    oid.index.iid.tag=='z' && return z
-    oid.index.iid.tag=='+' && return add!(x, mul!(y, 1im))
+    x, y, z = hp.magneticstructure.rotations[index.index.site]*SVector(xₗ, yₗ, zₗ)
+    index.index.iid.tag=='x' && return x
+    index.index.iid.tag=='y' && return y
+    index.index.iid.tag=='z' && return z
+    index.index.iid.tag=='+' && return add!(x, mul!(y, 1im))
     return sub!(x, mul!(y, 1im))
 end
 
@@ -113,9 +121,7 @@ end
 
 Get the corresponding Hilbert space of the original one after the Holstein-Primakoff transformation. 
 """
-@inline function Hilbert(hilbert::Hilbert{<:Spin}, magneticstructure::MagneticStructure)
-    return Hilbert(pid=>Fock{:b}(norbital=hilbert[pid].norbital, nspin=1, nnambu=2) for pid in magneticstructure.cell.pids)
-end
+@inline Hilbert(hilbert::Hilbert{<:Spin}, magneticstructure::MagneticStructure) = Hilbert(site=>Fock{:b}(1, 1) for site=1:length(magneticstructure.cell))
 
 """
     Magnonic <: TBAKind{:BdG}
@@ -125,11 +131,11 @@ Magnonic quantum lattice system.
 struct Magnonic <: TBAKind{:BdG} end
 
 """
-    Metric(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) -> OIDToTuple
+    Metric(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) -> OperatorUnitToTuple
 
-Get the oid-to-tuple metric for a quantum spin system after the Holstein-Primakoff transformation.
+Get the index-to-tuple metric for a quantum spin system after the Holstein-Primakoff transformation.
 """
-@inline @generated Metric(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) = OIDToTuple(:nambu, fieldnames(keytype(hilbert))..., :orbital)
+@inline @generated Metric(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) = OperatorUnitToTuple(:nambu, :site)
 
 """
     commutator(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) -> Diagonal
@@ -147,18 +153,18 @@ Get the commutation relation of the Holstein-Primakoff bosons.
 # caused by a Julia bug.). This may cause a little bit of type instability but it turns out to be unimportant because the total
 # time of the code execution is at most of several seconds, which differs little compared to previous versions.
 """
-    LSWT{K<:TBAKind{:BdG}, L<:Lattice, H<:Generator, HP<:HPTransformation, E<:Image, F<:Image} <: AbstractTBA{K, H, AbstractMatrix}
+    LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, H<:OperatorGenerator, HP<:HPTransformation, E<:Image, F<:Image} <: AbstractTBA{K, H, AbstractMatrix}
 
 Linear spin wave theory for magnetically ordered quantum lattice systems.
 """
-struct LSWT{K<:TBAKind{:BdG}, L<:Lattice, H<:Generator, HP<:HPTransformation, E<:Image, F<:Image} <: AbstractTBA{K, H, AbstractMatrix}
+struct LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, H<:OperatorGenerator, HP<:HPTransformation, E<:Image, F<:Image} <: AbstractTBA{K, H, AbstractMatrix}
     lattice::L
     H::H
     hp::HP
     H₀::E
     H₂::F
     commutator::AbstractMatrix
-    function LSWT{K}(lattice::Lattice, H::Generator, hp::HPTransformation) where {K<:TBAKind{:BdG}}
+    function LSWT{K}(lattice::AbstractLattice, H::OperatorGenerator, hp::HPTransformation) where {K<:TBAKind{:BdG}}
         temp = hp(H)
         hilbert = Hilbert(H.hilbert, hp.magneticstructure)
         table = Table(hilbert, Metric(K(), hilbert))
@@ -181,50 +187,51 @@ end
 end
 
 """
-    LSWT(lattice::Lattice, hilbert::Hilbert{<:Spin}, terms::Tuple{Vararg{Term}}, magneticstructure::MagneticStructure; boundary::Boundary=plain)
+    LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Tuple{Vararg{Term}}, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
 
 Construct a LSWT.
 """
-@inline function LSWT(lattice::Lattice, hilbert::Hilbert{<:Spin}, terms::Tuple{Vararg{Term}}, magneticstructure::MagneticStructure; boundary::Boundary=plain)
-    H = Generator(terms, Bonds(magneticstructure.cell), hilbert; half=false, boundary=boundary)
+@inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Tuple{Vararg{Term}}, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
+    isnothing(neighbors) && (neighbors=maximum(term->term.bondkind, terms))
+    H = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert; half=false, boundary=boundary)
     hp = HPTransformation{valtype(H)}(magneticstructure)
     return LSWT{Magnonic}(lattice, H, hp)
 end
 
 """
-    matrix(lswt::LSWT; k=nothing, gauge=:icoord, atol=atol/5, kwargs...) -> TBAMatrix
+    matrix(lswt::LSWT; k=nothing, gauge=:icoordinate, atol=atol/5, kwargs...) -> TBAMatrix
 
 Get the tight-binding matrix representation of the linear spin waves.
 
 Here, the `atol` parameter is used to ensure that the matrix is positive-definite so that the Cholesky decomposition can be performed numerically.
 """
-@inline function matrix(lswt::LSWT; k=nothing, gauge=:icoord, atol=atol/5, kwargs...)
+@inline function matrix(lswt::LSWT; k=nothing, gauge=:icoordinate, atol=atol/5, kwargs...)
     return TBAMatrix(Hermitian(TBAMatrixRepresentation(lswt, k, gauge)(expand(lswt.H₂); atol=atol, kwargs...)), lswt.commutator)
 end
 
 """
-    TBAMatrixRepresentation(lswt::LSWT, k=nothing, gauge::Symbol=:icoord)
+    TBAMatrixRepresentation(lswt::LSWT, k=nothing, gauge::Symbol=:icoordinate)
 
 Construct the matrix representation transformation of a quantum spin system using the linear spin wave theory.
 """
-@inline function TBAMatrixRepresentation(lswt::LSWT, k=nothing, gauge::Symbol=:icoord)
+@inline function TBAMatrixRepresentation(lswt::LSWT, k=nothing, gauge::Symbol=:icoordinate)
     return TBAMatrixRepresentation{typeof(lswt)}(k, lswt.H₂.table, gauge)
 end
 
 """
-    add!(dest::Matrix, mr::TBAMatrixRepresentation{<:LSWT}, m::Operator{<:Number, <:ID{CompositeOID{<:Index{<:AbstractPID, <:FID{:b}}}}}; atol=atol/5, kwargs...) -> typeof(dest)
+    add!(dest::Matrix, mr::TBAMatrixRepresentation{<:LSWT}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}}}; atol=atol/5, kwargs...) -> typeof(dest)
 
 Get the matrix representation of an operator and add it to destination.
 """
-function add!(dest::Matrix, mr::TBAMatrixRepresentation{<:LSWT}, m::Operator{<:Number, <:ID{CompositeOID{<:Index{<:AbstractPID, <:FID{:b}}}}}; atol=atol/5, kwargs...)
+function add!(dest::Matrix, mr::TBAMatrixRepresentation{<:LSWT}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}}}; atol=atol/5, kwargs...)
     if m[1]==m[2]'
         seq₁ = mr.table[m[1].index]
         seq₂ = mr.table[m[2].index]
         dest[seq₁, seq₁] += m.value+atol
         dest[seq₂, seq₂] += m.value+atol
     else
-        coord = mr.gauge==:rcoord ? rcoord(m) : icoord(m)
-        phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(-1im*dot(mr.k, coord)))
+        coordinate = mr.gauge==:rcoordinate ? rcoordinate(m) : icoordinate(m)
+        phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(1im*dot(mr.k, coordinate)))
         seq₁ = mr.table[m[1].index']
         seq₂ = mr.table[m[2].index]
         dest[seq₁, seq₂] += m.value*phase
@@ -235,21 +242,21 @@ end
 
 # Inelastic neutron scattering spectra of magnetically ordered local spin systems.
 function run!(lswt::Algorithm{<:LSWT{Magnonic}}, ins::Assignment{<:InelasticNeutronScatteringSpectra})
-    operators = spinoperators(lswt.engine.H.hilbert, lswt.engine.hp)
-    m = zeros(promote_type(valtype(lswt.engine), Complex{Int}), dimension(lswt.engine), dimension(lswt.engine))
+    operators = spinoperators(lswt.frontend.H.hilbert, lswt.frontend.hp)
+    m = zeros(promote_type(valtype(lswt.frontend), Complex{Int}), dimension(lswt.frontend), dimension(lswt.frontend))
     data = zeros(Complex{Float64}, size(ins.data[3]))
     η = get(ins.action.options, :η, 0.1)
     for (i, params) in enumerate(pairs(ins.action.path))
         update!(lswt; params...)
-        @timeit lswt.timer "matrix" (mr = matrix(lswt.engine; gauge=get(ins.action.options, :gauge, :icoord), params...))
+        @timeit lswt.timer "matrix" (mr = matrix(lswt.frontend; gauge=get(ins.action.options, :gauge, :icoordinate), params...))
         @timeit lswt.timer "eigen" ((eigenvalues, eigenvectors) = eigen(mr))
         @timeit lswt.timer "spectra" for α=1:3, β=1:3
             factor = delta(α, β) - ((norm(params.k)==0 || α>length(params.k) || β>length(params.k)) ? 0 : params.k[α]*params.k[β]/dot(params.k, params.k))
             if !isapprox(abs(factor), 0, atol=atol, rtol=rtol)
-                matrix!(m, operators, α, β, lswt.engine.H₂.table, params.k)
+                matrix!(m, operators, α, β, lswt.frontend.H₂.table, params.k)
                 diag = Diagonal(eigenvectors'*m*eigenvectors)
                 for (nₑ, e) in enumerate(ins.action.energies)
-                    for j = (dimension(lswt.engine)÷2+1):dimension(lswt.engine)
+                    for j = (dimension(lswt.frontend)÷2+1):dimension(lswt.frontend)
                         data[nₑ, i] += factor*diag[j, j]*η^2/(η^2+(e-eigenvalues[j])^2)/pi
                     end
                 end
@@ -260,16 +267,16 @@ function run!(lswt::Algorithm{<:LSWT{Magnonic}}, ins::Assignment{<:InelasticNeut
     ins.data[3][:, :] .= real(data)[:, :]
     get(ins.action.options, :log, true) && (ins.data[3][:, :] = log.(ins.data[3].+1))
 end
-function spinoperators(hilbert::Hilbert{<:Spin}, hp::HPTransformation{S, U}) where {S<:Operators, U<:OID{<:Index{<:AbstractPID, <:SID}}}
+function spinoperators(hilbert::Hilbert{<:Spin}, hp::HPTransformation{S, U}) where {S<:Operators, U<:CompositeIndex{<:Index{Int, <:SID}}}
     M = fulltype(Operator, NamedTuple{(:value, :id), Tuple{valtype(eltype(S)), Tuple{U}}})
     x, y, z = Operators{M}(), Operators{M}(), Operators{M}()
-    for (pid, spin) in pairs(hilbert)
-        rcoord = hp.magneticstructure.cell[LatticeIndex{'R'}(pid)] 
-        icoord = hp.magneticstructure.cell[LatticeIndex{'I'}(pid)]
+    for (site, spin) in pairs(hilbert)
+        rcoordinate = hp.magneticstructure.cell[site]
+        icoordinate = zero(rcoordinate)
         for sid in spin
-            sid.tag=='x' && add!(x, Operator(1, OID(Index(pid, sid), rcoord, icoord)))
-            sid.tag=='y' && add!(y, Operator(1, OID(Index(pid, sid), rcoord, icoord)))
-            sid.tag=='z' && add!(z, Operator(1, OID(Index(pid, sid), rcoord, icoord)))
+            sid.tag=='x' && add!(x, Operator(1, CompositeIndex(Index(site, sid), rcoordinate, icoordinate)))
+            sid.tag=='y' && add!(y, Operator(1, CompositeIndex(Index(site, sid), rcoordinate, icoordinate)))
+            sid.tag=='z' && add!(z, Operator(1, CompositeIndex(Index(site, sid), rcoordinate, icoordinate)))
         end
     end
     x = hp(x, zoff=true)|>RankFilter(1)
@@ -280,7 +287,7 @@ end
 function matrix!(m::Matrix{<:Number}, operators::SMatrix{3, 3, <:Operators, 9}, i::Int, j::Int, table::Table, k)
     m[:, :] .= zero(eltype(m))
     for op in operators[i, j]
-        phase = convert(eltype(m), exp(1im*dot(k, rcoord(op))))
+        phase = convert(eltype(m), exp(1im*dot(k, rcoordinate(op))))
         seq₁ = table[op[1].index']
         seq₂ = table[op[2].index]
         m[seq₁, seq₂] += op.value*phase

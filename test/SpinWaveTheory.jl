@@ -1,18 +1,14 @@
-using SpinWaveTheory
 using Plots: plot, plot!, savefig
-using QuantumLattices: Lattice, Point, PID, Hilbert, Spin, SpinTerm, @heisenberg_str, Algorithm, ReciprocalPath, @rectangle_str, atol
+using QuantumLattices: atol, Algorithm, Hilbert, Lattice, MatrixCoupling, ReciprocalPath, SID, Spin, SpinTerm, @Heisenberg_str, @rectangle_str
+using SpinWaveTheory
 using TightBindingApproximation: EnergyBands, InelasticNeutronScatteringSpectra
 
 @testset "SquareFM" begin
-    lattice = Lattice(:Square,
-        [Point(PID(1), [0.0, 0.0])],
-        vectors=[[1.0, 0.0], [0.0, 1.0]],
-        neighbors=1
-        )
-    hilbert = Hilbert(pid=>Spin{1//2}(1) for pid in lattice.pids)
-    J = SpinTerm(:J, -1.0, 1, heisenberg"xyz")
-    ms₁ = MagneticStructure(lattice, Dict(pid=>[0, 0, 1] for pid in lattice.pids))
-    ms₂ = MagneticStructure(lattice, Dict(pid=>[0, 0] for pid in lattice.pids))
+    lattice = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
+    hilbert = Hilbert(site=>Spin{1//2}() for site=1:length(lattice))
+    J = SpinTerm(:J, -1.0, 1, MatrixCoupling(:, SID, Heisenberg""))
+    ms₁ = MagneticStructure(lattice, Dict(site=>[0, 0, 1] for site=1:length(lattice)))
+    ms₂ = MagneticStructure(lattice, Dict(site=>[0, 0] for site=1:length(lattice)))
     @test ms₁.rotations == ms₂.rotations
     lswt = Algorithm(:FM, LSWT(lattice, hilbert, (J,), ms₂))
 
