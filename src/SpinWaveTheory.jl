@@ -2,7 +2,7 @@ module SpinWaveTheory
 
 using LinearAlgebra: Diagonal, Hermitian, dot, eigen, norm
 using QuantumLattices: dtype, expand, mul!, sub!
-using QuantumLattices: plain, Boundary, CompositeIndex, Hilbert, Index, OperatorUnitToTuple, SimpleIID, Table, Term, indextype
+using QuantumLattices: plain, Boundary, CompositeIndex, Hilbert, Index, OperatorUnitToTuple, Table, Term, indextype
 using QuantumLattices: Action, Algorithm, Assignment, Image, OperatorGenerator
 using QuantumLattices: AbstractUnitSubstitution, ID, Operator, Operators, RankFilter, idtype
 using QuantumLattices: FID, Fock, SID, Spin
@@ -75,11 +75,11 @@ function MagneticStructure(cell::AbstractLattice, moments::Dict{Int, <:AbstractV
 end
 
 """
-    HPTransformation{S<:Operators, U<:CompositeIndex{<:Index{Int, <:SimpleIID}}, M<:MagneticStructure} <: AbstractUnitSubstitution{U, S}
+    HPTransformation{S<:Operators, U<:CompositeIndex, M<:MagneticStructure} <: AbstractUnitSubstitution{U, S}
 
 Holstein-Primakoff transformation.
 """
-struct HPTransformation{S<:Operators, U<:CompositeIndex{<:Index{Int, <:SimpleIID}}, M<:MagneticStructure} <: AbstractUnitSubstitution{U, S}
+struct HPTransformation{S<:Operators, U<:CompositeIndex, M<:MagneticStructure} <: AbstractUnitSubstitution{U, S}
     magneticstructure::M
     function HPTransformation{S}(magneticstructure::MagneticStructure) where {S<:Operators}
         O = optype(HPTransformation, S)
