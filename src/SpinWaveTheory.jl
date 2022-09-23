@@ -93,7 +93,7 @@ end
 @inline function optype(::Type{<:HPTransformation}, ::Type{S}) where {S<:Operators}
     V = promote_type(valtype(eltype(S)), Complex{Int})
     Iₒ = indextype(eltype(eltype(S)))
-    Iₜ = reparameter(Iₒ, :iid, FID{:b, Int, Int, Int})
+    Iₜ = reparameter(Iₒ, :iid, FID{:b, Int, Rational{Int}, Int})
     I = Iₜ<:Iₒ ? Iₒ : Iₜ
     U = reparameter(eltype(eltype(S)), :index, I)
     return fulltype(eltype(S), NamedTuple{(:value, :id), Tuple{V, ID{U}}})
@@ -102,8 +102,8 @@ end
 function (hp::HPTransformation)(index::CompositeIndex{<:Index{Int, <:SID{S}}}; zoff::Bool=false) where S
     datatype = valtype(eltype(valtype(hp)))
     factor = √(2*S*one(datatype))/2
-    op₁ = Operator(1, replace(index, index=replace(index.index, iid=FID{:b}(1, 1, 1))))
-    op₂ = Operator(1, replace(index, index=replace(index.index, iid=FID{:b}(1, 1, 2))))
+    op₁ = Operator(1, replace(index, index=replace(index.index, iid=FID{:b}(1, 0, 1))))
+    op₂ = Operator(1, replace(index, index=replace(index.index, iid=FID{:b}(1, 0, 2))))
     xₗ = add!(add!(zero(valtype(hp)), factor*op₁), factor*op₂)
     yₗ = sub!(add!(zero(valtype(hp)), factor*op₁/1im), factor*op₂/1im)
     zₗ = zero(valtype(hp))
