@@ -10,7 +10,7 @@ Spin wave theory for magnetically ordered quantum lattice systems based on the [
 
 ## Installation
 
-In Julia **v1.6+**, please type `]` in the REPL to use the package mode, then type this command:
+In Julia **v1.8+**, please type `]` in the REPL to use the package mode, then type this command:
 
 ```julia
 pkg> add SpinWaveTheory
