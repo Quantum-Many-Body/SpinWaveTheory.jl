@@ -21,11 +21,11 @@ using TightBindingApproximation: EnergyBands, InelasticNeutronScatteringSpectra
     end
 
     path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=100)
-    ebs = lswt(:EBS, EnergyBands(path))
-    ins = lswt(:INS, InelasticNeutronScatteringSpectra(path, range(0.0, 5.0, length=501); η=0.3, log=true))
+    eb = lswt(:EB, EnergyBands(path))
+    spectra = lswt(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 5.0, length=501); fwhm=0.1, scale=log))
     plt = plot()
-    plot!(plt, ins)
-    plot!(plt, ebs, color=:white, linestyle=:dash)
+    plot!(plt, spectra)
+    plot!(plt, eb, color=:white, linestyle=:dash)
     display(plt)
-    savefig("spectra.png")
+    savefig("inelastic.png")
 end

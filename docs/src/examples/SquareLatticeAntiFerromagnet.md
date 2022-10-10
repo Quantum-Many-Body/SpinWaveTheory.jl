@@ -12,7 +12,7 @@ The following codes could compute the spin wave dispersions of the antiferromagn
 using QuantumLattices
 using TightBindingApproximation
 using SpinWaveTheory
-using Plots; pyplot()
+using Plots
 
 lattice = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
 cell = Lattice(
@@ -22,22 +22,24 @@ cell = Lattice(
 )
 hilbert = Hilbert(site=>Spin{1//2}() for site=1:length(cell))
 J = SpinTerm(:J, 1.0, 1, MatrixCoupling(:, SID, Heisenberg""))
-h = SpinTerm(:h, -0.01, 0, Coupling(Index(:, SID('z')))^2)
 magneticstructure = MagneticStructure(
     cell,
     Dict(site=>(iseven(site) ? [0, 0, 1] : [0, 0, -1]) for site=1:length(cell))
 )
-antiferromagnet = Algorithm(:SquareAFM, LSWT(lattice, hilbert, (J, h), magneticstructure))
+antiferromagnet = Algorithm(:SquareAFM, LSWT(lattice, hilbert, (J,), magneticstructure))
 
 path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=100)
-ins = antiferromagnet(
-    :INS,
-    InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=251); η=0.1, log=true)
+spectra = antiferromagnet(
+    :INSS,
+    InelasticNeutronScatteringSpectra(
+        path, range(0.0, 2.5, length=251);
+        fwhm=0.05, scale=x->log(1+log(1+log(1+x)))
+        )
 )
 energybands = antiferromagnet(:EB, EnergyBands(path))
 
 plt = plot()
-plot!(plt, ins)
+plot!(plt, spectra)
 plot!(plt, energybands, color=:white, linestyle=:dash)
 ```
 
