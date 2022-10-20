@@ -1,7 +1,7 @@
 module SpinWaveTheory
 
 using LinearAlgebra: Diagonal, Hermitian, dot, eigen, norm
-using QuantumLattices: dtype, expand, kind, mul!, sub!
+using QuantumLattices: dimension, dtype, expand, kind, mul!, sub!
 using QuantumLattices: plain, Boundary, CompositeIndex, Hilbert, Index, OperatorUnitToTuple, Table, Term, indextype
 using QuantumLattices: Action, Algorithm, Assignment, Image, OperatorGenerator
 using QuantumLattices: ID, Operator, Operators, RankFilter, UnitSubstitution, idtype
@@ -9,10 +9,10 @@ using QuantumLattices: FID, Fock, SID, Spin
 using QuantumLattices: AbstractLattice, Neighbors, bonds, icoordinate, rcoordinate
 using QuantumLattices: atol, rtol, delta, fulltype, reparameter
 using StaticArrays: SVector, SMatrix, @SMatrix
-using TightBindingApproximation: AbstractTBA, InelasticNeutronScatteringSpectra, TBAKind, TBAMatrix, TBAMatrixRepresentation
+using TightBindingApproximation: AbstractTBA, InelasticNeutronScatteringSpectra, TBAKind, TBAMatrixRepresentation
 using TimerOutputs: @timeit
 
-import QuantumLattices: add!, dimension, matrix, update!
+import QuantumLattices: add!, matrix, update!
 import QuantumLattices: Metric
 import QuantumLattices: run!
 import QuantumLattices: optype
@@ -174,35 +174,33 @@ end
 # caused by a Julia bug.). This may cause a little bit of type instability but it turns out to be unimportant because the total
 # time of the code execution is at most of several seconds, which differs little compared to previous versions.
 """
-    LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, H<:OperatorGenerator, HP<:HPTransformation, E<:Image, F<:Image} <: AbstractTBA{K, H, AbstractMatrix}
+    LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:HPTransformation, Ω<:Image, H<:Image} <: AbstractTBA{K, H, AbstractMatrix}
 
 Linear spin wave theory for magnetically ordered quantum lattice systems.
 """
-struct LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, H<:OperatorGenerator, HP<:HPTransformation, E<:Image, F<:Image} <: AbstractTBA{K, H, AbstractMatrix}
+struct LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:HPTransformation, Ω<:Image, H<:Image} <: AbstractTBA{K, H, AbstractMatrix}
     lattice::L
-    H::H
+    Hₛ::Hₛ
     hp::HP
-    H₀::E
-    H₂::F
+    Ω::Ω
+    H::H
     commutator::AbstractMatrix
-    function LSWT{K}(lattice::AbstractLattice, H::OperatorGenerator, hp::HPTransformation) where {K<:TBAKind{:BdG}}
-        temp = hp(H)
-        hilbert = Hilbert(H.hilbert, hp.magneticstructure)
+    function LSWT{K}(lattice::AbstractLattice, Hₛ::OperatorGenerator, hp::HPTransformation) where {K<:TBAKind{:BdG}}
+        temp = hp(Hₛ)
+        hilbert = Hilbert(Hₛ.hilbert, hp.magneticstructure)
         table = Table(hilbert, Metric(K(), hilbert))
-        H₀ = RankFilter(0)(temp, table=table)
-        H₂ = RankFilter(2)(temp, table=table)
+        Ω = RankFilter(0)(temp, table=table)
+        H = RankFilter(2)(temp, table=table)
         commt = commutator(K(), hilbert)
-        new{K, typeof(lattice), typeof(H), typeof(hp), typeof(H₀), typeof(H₂)}(lattice, H, hp, H₀, H₂, commt)
+        new{K, typeof(lattice), typeof(Hₛ), typeof(hp), typeof(Ω), typeof(H)}(lattice, Hₛ, hp, Ω, H, commt)
     end
 end
-@inline contentnames(::Type{<:LSWT}) = (:lattice, :H, :hp, :H₀, :H₂, :commutator)
-@inline Base.valtype(T::Type{<:LSWT}) = valtype(eltype(fieldtype(T, :H₂)))
-@inline dimension(lswt::LSWT) = length(lswt.H₂.table)
+@inline contentnames(::Type{<:LSWT}) = (:lattice, :Hₛ, :hp, :Ω, :H, :commutator)
 @inline function update!(lswt::LSWT; k=nothing, kwargs...)
     if length(kwargs)>0
+        update!(lswt.Hₛ; kwargs...)
+        update!(lswt.Ω; kwargs...)
         update!(lswt.H; kwargs...)
-        update!(lswt.H₀; kwargs...)
-        update!(lswt.H₂; kwargs...)
     end
     return lswt
 end
@@ -214,36 +212,14 @@ Construct a LSWT.
 """
 @inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Tuple{Vararg{Term}}, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
     isnothing(neighbors) && (neighbors=maximum(term->term.bondkind, terms))
-    H = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert; half=false, boundary=boundary)
-    hp = HPTransformation{valtype(H)}(magneticstructure)
-    return LSWT{Magnonic}(lattice, H, hp)
-end
-
-"""
-    TBAMatrixRepresentation(lswt::LSWT, k=nothing, gauge::Symbol=:icoordinate)
-
-Construct the matrix representation transformation of a quantum spin system using the linear spin wave theory.
-"""
-@inline function TBAMatrixRepresentation(lswt::LSWT, k=nothing, gauge::Symbol=:icoordinate)
-    return TBAMatrixRepresentation{typeof(kind(lswt)), datatype(valtype(lswt), k)}(k, lswt.H₂.table, gauge)
-end
-@inline datatype(::Type{D}, ::Nothing) where D = D
-@inline datatype(::Type{D}, ::Any) where D = promote_type(D, Complex{Int})
-
-"""
-    matrix(lswt::LSWT; k=nothing, gauge=:icoordinate, atol=atol/5, kwargs...) -> TBAMatrix
-
-Get the tight-binding matrix representation of the linear spin waves.
-
-Here, the `atol` parameter is used to ensure that the matrix is positive-definite so that the Cholesky decomposition can be performed numerically.
-"""
-@inline function matrix(lswt::LSWT; k=nothing, gauge=:icoordinate, atol=atol/5, kwargs...)
-    return TBAMatrix(Hermitian(TBAMatrixRepresentation(lswt, k, gauge)(expand(lswt.H₂); atol=atol, kwargs...)), lswt.commutator)
+    Hₛ = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert; half=false, boundary=boundary)
+    hp = HPTransformation{valtype(Hₛ)}(magneticstructure)
+    return LSWT{Magnonic}(lattice, Hₛ, hp)
 end
 
 # Inelastic neutron scattering spectra of magnetically ordered local spin systems.
 function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeutronScatteringSpectra})
-    operators = spinoperators(lswt.frontend.H.hilbert, lswt.frontend.hp)
+    operators = spinoperators(lswt.frontend.Hₛ.hilbert, lswt.frontend.hp)
     m = zeros(promote_type(valtype(lswt.frontend), Complex{Int}), dimension(lswt.frontend), dimension(lswt.frontend))
     σ = get(inss.action.options, :fwhm, 0.1)/2/√(2*log(2))
     data = zeros(Complex{Float64}, size(inss.data[3]))
@@ -252,7 +228,7 @@ function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeu
         @timeit lswt.timer "spectra" for α=1:3, β=1:3
             factor = (delta(α, β) - ((norm(momentum)==0 || α>length(momentum) || β>length(momentum)) ? 0 : momentum[α]*momentum[β]/dot(momentum, momentum)))/√(2pi)/σ
             if !isapprox(abs(factor), 0, atol=atol, rtol=rtol)
-                matrix!(m, operators, α, β, lswt.frontend.H₂.table, momentum)
+                matrix!(m, operators, α, β, lswt.frontend.H.table, momentum)
                 diag = Diagonal(eigenvectors'*m*eigenvectors)
                 for (nₑ, e) in enumerate(inss.action.energies)
                     for j = (dimension(lswt.frontend)÷2+1):dimension(lswt.frontend)
