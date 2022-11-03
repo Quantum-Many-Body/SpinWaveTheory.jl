@@ -18,7 +18,7 @@ J = SpinTerm(:J, -1.0, 1, MatrixCoupling(:, SID, Heisenberg""))
 magneticstructure = MagneticStructure(lattice, Dict(site=>[0, 0, 1] for site=1:length(lattice)))
 ferromagnet = Algorithm(:SquareFM, LSWT(lattice, hilbert, (J,), magneticstructure))
 
-path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=100)
+path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=100)
 spectra = ferromagnet(
     :INSS,
     InelasticNeutronScatteringSpectra(path, range(0.0, 5.0, length=501); fwhm=0.2, scale=log)

@@ -47,7 +47,7 @@ K = SpinTerm(:K, -4.288, 1, kitaev)
 
 magneticstructure = MagneticStructure(lattice, Dict(site=>[1, 1, 1] for site=1:length(lattice)))
 CrBr₃ = Algorithm(:CrBr₃, LSWT(lattice, hilbert, (J₁, J₂, J₃, K, Γ), magneticstructure))
-path = ReciprocalPath(lattice.reciprocals, (-2, -1)=>(2, 1), length=400)
+path = ReciprocalPath(reciprocals(lattice), (-2, -1)=>(2, 1), length=400)
 
 spectra = CrBr₃(
     :INSS,
@@ -63,7 +63,7 @@ yticks!(plt, range(0.0, 15.0, length=16))
 ## Berry curvature and Chern number of the magnon bands
 The Berry curvatures and the Chern numbers of the magnon bands could be computed in the reciprocal unitcell:
 ```@example CrBr3
-brillouin = BrillouinZone(lattice.reciprocals, 90)
+brillouin = BrillouinZone(reciprocals(lattice), 90)
 berry = CrBr₃(:BerryCurvature, BerryCurvature(brillouin, [1, 2]));
 plot(berry)
 ```

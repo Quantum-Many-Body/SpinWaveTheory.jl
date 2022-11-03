@@ -11,7 +11,7 @@ TightBindingApproximation = "d3576f78-cb9d-4774-9dc5-b247cf392ff4"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
-QuantumLattices = "0.9.2"
+QuantumLattices = "0.9.3"
 StaticArrays = "1.2"
 TightBindingApproximation = "0.1.13"
 TimerOutputs = "0.5"
