@@ -142,7 +142,7 @@ Get the index-to-tuple metric for a quantum spin system after the Holstein-Prima
 
 Get the commutation relation of the Holstein-Primakoff bosons.
 """
-@inline commutator(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) = Diagonal(kron([1, -1], ones(Int64, sum(dimension, values(hilbert))÷2)))
+@inline commutator(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) = Diagonal(kron([1, -1], ones(Int64, sum(length, values(hilbert))÷2)))
 
 """
     add!(dest::Matrix, mr::TBAMatrixRepresentation{Magnonic}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}, 2}}; atol=atol/5, kwargs...) -> typeof(dest)

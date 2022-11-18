@@ -73,8 +73,8 @@ The Berry curvatures can also be computed in a reciprocal zone beyond the recipr
 ```@example CrBr3
 b₁, b₂ = 4*pi/√3*[1.0, 0.0], 4*pi/√3*[0.0, 1.0]
 reciprocalzone = ReciprocalZone(
-    [b₁, b₂],
-    [Segment(-1.0, +1.0, 301, ends=(true, true)), Segment(-1.0, 1.0, 301, ends=(true, true))]
+    [b₁, b₂], [-1.0=>1.0, -1.0=>1.0];
+    length=301, ends=(true, true)
 )
 berry = CrBr₃(:BerryCurvatureEx, BerryCurvature(reciprocalzone, [1, 2]))
 plot(berry)
