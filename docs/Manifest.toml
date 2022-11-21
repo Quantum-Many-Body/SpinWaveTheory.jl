@@ -26,9 +26,9 @@ uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[deps.BitFlags]]
-git-tree-sha1 = "629c6e4a7be8f427d268cebef2a5e3de6c50d462"
+git-tree-sha1 = "43b1a4a8f797c1cddadf60499a8a077d4af2cd2d"
 uuid = "d1d4a3ce-64b1-5f1a-9ba4-7e7e69966f35"
-version = "0.1.6"
+version = "0.1.7"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -102,9 +102,9 @@ version = "0.3.0"
 
 [[deps.Compat]]
 deps = ["Dates", "LinearAlgebra", "UUIDs"]
-git-tree-sha1 = "3ca828fe1b75fa84b021a7860bd039eaea84d2f2"
+git-tree-sha1 = "aaabba4ce1b7f8a9b34c015053d3b1edf60fa49c"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "4.3.0"
+version = "4.4.0"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -220,9 +220,9 @@ version = "0.13.5"
 
 [[deps.FiniteDiff]]
 deps = ["ArrayInterfaceCore", "LinearAlgebra", "Requires", "Setfield", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "bb61d9e5085784fe453f70c97b23964c5bf36942"
+git-tree-sha1 = "04ed1f0029b6b3af88343e439b995141cb0d0b8d"
 uuid = "6a86dc24-6348-571c-b903-95158fe2bd41"
-version = "2.16.0"
+version = "2.17.0"
 
 [[deps.FixedPointNumbers]]
 deps = ["Statistics"]
@@ -684,9 +684,9 @@ version = "5.15.3+2"
 
 [[deps.QuantumLattices]]
 deps = ["DataStructures", "DelimitedFiles", "Formatting", "LaTeXStrings", "Latexify", "LinearAlgebra", "NearestNeighbors", "Printf", "Random", "RecipesBase", "Serialization", "SparseArrays", "StaticArrays", "TimerOutputs"]
-git-tree-sha1 = "5bf29ca70d1aa6dba410549ec95ffe5ff0bbae3f"
+git-tree-sha1 = "f3789d4f9378009c5e8df6d06012b5ff9e9f8a2b"
 uuid = "78ae1a1f-1d5d-5174-b61c-66e31b2346dc"
-version = "0.9.4"
+version = "0.9.5"
 
 [[deps.REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
@@ -838,9 +838,9 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.TightBindingApproximation]]
 deps = ["LinearAlgebra", "Optim", "Printf", "QuantumLattices", "RecipesBase", "TimerOutputs"]
-git-tree-sha1 = "2acb61513ffcd2f6f8d592ca24bba6c6cdcdb50b"
+git-tree-sha1 = "51f4df6c715c06a009f5c89227d2529cfa0c77b9"
 uuid = "d3576f78-cb9d-4774-9dc5-b247cf392ff4"
-version = "0.1.16"
+version = "0.1.17"
 
 [[deps.TimerOutputs]]
 deps = ["ExprTools", "Printf"]
