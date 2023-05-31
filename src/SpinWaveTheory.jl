@@ -10,7 +10,7 @@ using QuantumLattices: AbstractLattice, Neighbors, bonds, icoordinate, rcoordina
 using QuantumLattices: atol, rtol, delta, fulltype, reparameter
 using StaticArrays: SVector, SMatrix, @SMatrix
 using TightBindingApproximation: AbstractTBA, InelasticNeutronScatteringSpectra, TBAKind, TBAMatrixRepresentation
-using TimerOutputs: @timeit
+using TimerOutputs: @timeit_debug
 
 import QuantumLattices: add!, matrix, update!
 import QuantumLattices: Metric
@@ -223,9 +223,9 @@ function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeu
     m = zeros(promote_type(valtype(lswt.frontend), Complex{Int}), dimension(lswt.frontend), dimension(lswt.frontend))
     σ = get(inss.action.options, :fwhm, 0.1)/2/√(2*log(2))
     data = zeros(Complex{Float64}, size(inss.data[3]))
-    for (i, momentum) in enumerate(inss.action.path)
+    for (i, momentum) in enumerate(inss.action.reciprocalspace)
         eigenvalues, eigenvectors = eigen(lswt; k=momentum, inss.action.options...)
-        @timeit lswt.timer "spectra" for α=1:3, β=1:3
+        @timeit_debug lswt.timer "spectra" for α=1:3, β=1:3
             factor = (delta(α, β) - ((norm(momentum)==0 || α>length(momentum) || β>length(momentum)) ? 0 : momentum[α]*momentum[β]/dot(momentum, momentum)))/√(2pi)/σ
             if !isapprox(abs(factor), 0, atol=atol, rtol=rtol)
                 matrix!(m, operators, α, β, lswt.frontend.H.table, momentum)
