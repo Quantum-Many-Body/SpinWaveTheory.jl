@@ -26,7 +26,7 @@ magneticstructure = MagneticStructure(
     cell,
     Dict(site=>(iseven(site) ? [0, 0, 1] : [0, 0, -1]) for site=1:length(cell))
 )
-antiferromagnet = Algorithm(:SquareAFM, LSWT(lattice, hilbert, (J,), magneticstructure))
+antiferromagnet = Algorithm(:SquareAFM, LSWT(lattice, hilbert, J, magneticstructure))
 
 path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=100)
 spectra = antiferromagnet(
@@ -68,7 +68,7 @@ magneticstructure = MagneticStructure(
     cell,
     Dict(site=>(iseven(site) ? [0, 0, 1] : [0, 0, -1]) for site=1:length(cell))
 )
-antiferromagnet = LSWT(lattice, hilbert, (J,), magneticstructure)
+antiferromagnet = LSWT(lattice, hilbert, J, magneticstructure)
 
 k₁ = symbols("k₁", real=true)
 k₂ = symbols("k₂", real=true)

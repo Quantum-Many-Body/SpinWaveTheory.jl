@@ -206,10 +206,14 @@ end
 end
 
 """
+    LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, term::Term, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
     LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Tuple{Vararg{Term}}, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
 
 Construct a LSWT.
 """
+@inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, term::Term, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
+    return LSWT(lattice, hilbert, (term,), magneticstructure; neighbors=neighbors, boundary=boundary)
+end
 @inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Tuple{Vararg{Term}}, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
     isnothing(neighbors) && (neighbors=maximum(term->term.bondkind, terms))
     Hₛ = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert; half=false, boundary=boundary)

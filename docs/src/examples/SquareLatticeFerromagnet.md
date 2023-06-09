@@ -16,7 +16,7 @@ lattice = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
 hilbert = Hilbert(site=>Spin{1//2}() for site=1:length(lattice))
 J = SpinTerm(:J, -1.0, 1, MatrixCoupling(:, SID, Heisenberg""))
 magneticstructure = MagneticStructure(lattice, Dict(site=>[0, 0, 1] for site=1:length(lattice)))
-ferromagnet = Algorithm(:SquareFM, LSWT(lattice, hilbert, (J,), magneticstructure))
+ferromagnet = Algorithm(:SquareFM, LSWT(lattice, hilbert, J, magneticstructure))
 
 path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=100)
 spectra = ferromagnet(
