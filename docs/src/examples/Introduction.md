@@ -12,5 +12,5 @@ Pages = [
         "SquareLatticeAntiFerromagnet.md",
         "CrBr3.md",
         ]
-Depth = 1
+Depth = 2
 ```
