@@ -6,7 +6,7 @@ using QuantumLattices: plain, Boundary, CompositeIndex, Hilbert, Index, Operator
 using QuantumLattices: Action, Algorithm, Assignment, Image, OperatorGenerator
 using QuantumLattices: ID, Operator, Operators, RankFilter, UnitSubstitution, idtype
 using QuantumLattices: FID, Fock, SID, Spin
-using QuantumLattices: AbstractLattice, Neighbors, bonds, icoordinate, rcoordinate
+using QuantumLattices: AbstractLattice, Neighbors, bonds, direction, icoordinate, rcoordinate
 using QuantumLattices: atol, rtol, delta, fulltype, reparameter
 using StaticArrays: SVector, SMatrix, @SMatrix
 using TightBindingApproximation: AbstractTBA, InelasticNeutronScatteringSpectra, TBAKind, TBAMatrixRepresentation
@@ -22,26 +22,30 @@ import TightBindingApproximation: commutator
 export HPTransformation, LSWT, MagneticStructure, Magnonic, rotation
 
 """
-    rotation(destination::AbstractVector{<:Number}) -> SMatrix{3, 3}
+    rotation(destination::AbstractVector{<:Number}; kwargs...) -> SMatrix{3, 3}
+    rotation(destination::Tuple{Number, Number}; unit::Symbol=:radian) -> SMatrix{3, 3}
 
-Get the rotation matrix which rotates the `[0, 0, 1]` or `[θ, ϕ]` vector to the direction of the `destination` vector.
+Get the rotation matrix which rotates `[0, 0, 1]` to the direction of the `destination` vector.
 """
-function rotation(destination::AbstractVector{<:Number})
-    @assert length(destination)==3 || length(destination)==2 "rotation error: destination vector must be 3(or 2)-dimensional."
-    if length(destination) == 3
-        x, y, z = destination[1], destination[2], destination[3]
-        lenxy, lenxyz = √(x^2+y^2), √(x^2+y^2+z^2)
-        cosθ, sinθ = z/lenxyz, lenxy/lenxyz
-        cosφ, sinφ = if isapprox(lenxy, 0, atol=atol, rtol=rtol)
-            one(eltype(destination)), zero(eltype(destination))
-        else
-            x/lenxy, y/lenxy
-        end
+function rotation(destination::AbstractVector{<:Number}; kwargs...)
+    @assert length(destination)==3 "rotation error: destination vector must be 3-dimensional."
+    x, y, z = destination[1], destination[2], destination[3]
+    lenxy, lenxyz = √(x^2+y^2), √(x^2+y^2+z^2)
+    cosθ, sinθ = z/lenxyz, lenxy/lenxyz
+    cosφ, sinφ = if isapprox(lenxy, 0, atol=atol, rtol=rtol)
+        one(eltype(destination)), zero(eltype(destination))
     else
-        θ₁, ϕ₁ = destination[1], destination[2]
-        cosθ, sinθ = cos(θ₁), sin(θ₁)
-        cosφ, sinφ = cos(ϕ₁), sin(ϕ₁)
+        x/lenxy, y/lenxy
     end
+    return @SMatrix [cosθ*cosφ -sinφ sinθ*cosφ;
+                     cosθ*sinφ  cosφ sinθ*sinφ;
+                         -sinθ     0      cosθ]
+end
+function rotation(destination::Tuple{Number, Number}; unit::Symbol=:radian)
+    @assert unit∈(:degree, :radian) "rotation error: unit must be either `:degree` or `:radian`."
+    θ₁, ϕ₁ = destination[1], destination[2]
+    cosθ, sinθ = unit==:radian ? (cos(θ₁), sin(θ₁)) : (cosd(θ₁), sind(θ₁))
+    cosφ, sinφ = unit==:radian ? (cos(ϕ₁), sin(ϕ₁)) : (cosd(ϕ₁), sind(ϕ₁))
     return @SMatrix [cosθ*cosφ -sinφ sinθ*cosφ;
                      cosθ*sinφ  cosφ sinθ*sinφ;
                          -sinθ     0      cosθ]
@@ -59,19 +63,21 @@ struct MagneticStructure{L<:AbstractLattice, D<:Number}
 end
 
 """
-    MagneticStructure(cell::AbstractLattice, moments::Dict{Int, <:AbstractVector})
+    MagneticStructure(cell::AbstractLattice, moments::Dict{Int, <:Union{AbstractVector, NTuple{2, Number}}}; unit::Symbol=:radian)
 
 Construct the magnetic structure on a given lattice with the given moments.
 """
-function MagneticStructure(cell::AbstractLattice, moments::Dict{Int, <:AbstractVector})
+function MagneticStructure(cell::AbstractLattice, moments::Dict{Int, <:Union{AbstractVector, NTuple{2, Number}}}; unit::Symbol=:radian)
     @assert length(cell)==length(moments) "MagneticStructure error: mismatched magnetic cell and moments."
     datatype = promote_type(dtype(cell), eltype(valtype(moments)))
-    moments = convert(Dict{Int, Vector{datatype}}, moments)
+    new = Dict{Int, Vector{datatype}}()
     rotations = Dict{Int, SMatrix{3, 3, datatype, 9}}()
     for site=1:length(cell)
-        rotations[site] = rotation(moments[site])
+        destination = map(i->convert(datatype, i), moments[site])
+        new[site] = direction(destination, unit)
+        rotations[site] = rotation(destination; unit=unit)
     end
-    return MagneticStructure(cell, moments, rotations)
+    return MagneticStructure(cell, new, rotations)
 end
 
 """
@@ -189,8 +195,8 @@ struct LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:H
         temp = hp(Hₛ)
         hilbert = Hilbert(Hₛ.hilbert, hp.magneticstructure)
         table = Table(hilbert, Metric(K(), hilbert))
-        Ω = RankFilter(0)(temp, table=table)
-        H = RankFilter(2)(temp, table=table)
+        Ω = RankFilter(0)(temp, table)
+        H = RankFilter(2)(temp, table)
         commt = commutator(K(), hilbert)
         new{K, typeof(lattice), typeof(Hₛ), typeof(hp), typeof(Ω), typeof(H)}(lattice, Hₛ, hp, Ω, H, commt)
     end
@@ -206,20 +212,19 @@ end
 end
 
 """
-    LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, term::Term, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
-    LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Tuple{Vararg{Term}}, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
+    LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Union{Term, Tuple{Term, Vararg{Term}}}, magneticstructure::MagneticStructure, boundary::Boundary=plain; neighbors::Union{Nothing, Int, Neighbors}=nothing)
 
 Construct a LSWT.
 """
-@inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, term::Term, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
-    return LSWT(lattice, hilbert, (term,), magneticstructure; neighbors=neighbors, boundary=boundary)
-end
-@inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Tuple{Vararg{Term}}, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
+@inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Union{Term, Tuple{Term, Vararg{Term}}}, magneticstructure::MagneticStructure, boundary::Boundary=plain; neighbors::Union{Nothing, Int, Neighbors}=nothing)
+    terms = wrapper(terms)
     isnothing(neighbors) && (neighbors=maximum(term->term.bondkind, terms))
-    Hₛ = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert; half=false, boundary=boundary)
+    Hₛ = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert, boundary; half=false)
     hp = HPTransformation{valtype(Hₛ)}(magneticstructure)
     return LSWT{Magnonic}(lattice, Hₛ, hp)
 end
+@inline wrapper(x) = (x,)
+@inline wrapper(xs::Tuple) = xs
 
 # Inelastic neutron scattering spectra of magnetically ordered local spin systems.
 function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeutronScatteringSpectra})
