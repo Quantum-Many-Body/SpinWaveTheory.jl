@@ -17,21 +17,6 @@ using TightBindingApproximation
 using SpinWaveTheory
 using Plots
 
-function kitaev(bond)
-    ϕ = bond|>rcoordinate|>azimuthd
-    any(≈(ϕ), ( 90, 270)) && return Coupling(:, SID, ('z', 'z'))
-    any(≈(ϕ), ( 30, 210)) && return Coupling(:, SID, ('x', 'x'))
-    any(≈(ϕ), (150, 330)) && return Coupling(:, SID, ('y', 'y'))
-    error("kitaev error: wrong azimuth angle($ϕ) bond.")
-end
-function gamma(bond)
-    ϕ = bond|>rcoordinate|>azimuthd
-    any(≈(ϕ), ( 90, 270)) && return MatrixCoupling(:, SID, Γ"z")
-    any(≈(ϕ), ( 30, 210)) && return MatrixCoupling(:, SID, Γ"x")
-    any(≈(ϕ), (150, 330)) && return MatrixCoupling(:, SID, Γ"y")
-    error("kitaev error: wrong azimuth angle($ϕ) of bond.")
-end
-
 lattice = Lattice(
     (0.0, 0.0), (0.0, √3/3);
     name=:H2,
@@ -39,14 +24,14 @@ lattice = Lattice(
     )
 hilbert = Hilbert(site=>Spin{3//2}() for site=1:length(lattice))
 
-J₁ = SpinTerm(:J₁, 0.0, 1, MatrixCoupling(:, SID, Heisenberg""))
-J₂ = SpinTerm(:J₂, -0.178, 2, MatrixCoupling(:, SID, Heisenberg""))
-J₃ = SpinTerm(:J₃, 0.051, 3, MatrixCoupling(:, SID, Heisenberg""))
-K = SpinTerm(:K, -4.288, 1, kitaev)
-Γ = SpinTerm(:Γ, -0.044, 1, gamma)
+J₁ = Heisenberg(:J₁, 0.0, 1)
+J₂ = Heisenberg(:J₂, -0.178, 2)
+J₃ = Heisenberg(:J₃, 0.051, 3)
+K = Kitaev(:K, -4.288, 1; x=[30], y=[150], z=[270], unit=:degree)
+G = Γ(:Γ, -0.044, 1; x=[30], y=[150], z=[270], unit=:degree)
 
 magneticstructure = MagneticStructure(lattice, Dict(site=>[1, 1, 1] for site=1:length(lattice)))
-CrBr₃ = Algorithm(:CrBr₃, LSWT(lattice, hilbert, (J₁, J₂, J₃, K, Γ), magneticstructure))
+CrBr₃ = Algorithm(:CrBr₃, LSWT(lattice, hilbert, (J₁, J₂, J₃, K, G), magneticstructure))
 path = ReciprocalPath(reciprocals(lattice), (-2, -1)=>(2, 1), length=400)
 
 spectra = CrBr₃(

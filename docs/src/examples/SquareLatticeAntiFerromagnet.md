@@ -21,7 +21,7 @@ cell = Lattice(
     vectors=[[1.0, 1.0], [1.0, -1.0]]
 )
 hilbert = Hilbert(site=>Spin{1//2}() for site=1:length(cell))
-J = SpinTerm(:J, 1.0, 1, MatrixCoupling(:, SID, Heisenberg""))
+J = Heisenberg(:J, 1.0, 1)
 magneticstructure = MagneticStructure(
     cell,
     Dict(site=>(iseven(site) ? [0, 0, 1] : [0, 0, -1]) for site=1:length(cell))
@@ -63,7 +63,7 @@ cell = Lattice(
     vectors=[[one(Sym), one(Sym)], [one(Sym), -one(Sym)]]
 )
 hilbert = Hilbert(site=>Spin{1//2}() for site=1:length(cell))
-J = SpinTerm(:J, symbols("J", real=true), 1, MatrixCoupling(:, SID, Heisenberg""))
+J = Heisenberg(:J, symbols("J", real=true), 1)
 magneticstructure = MagneticStructure(
     cell,
     Dict(site=>(iseven(site) ? [0, 0, 1] : [0, 0, -1]) for site=1:length(cell))
