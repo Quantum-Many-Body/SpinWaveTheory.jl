@@ -172,25 +172,18 @@ function add!(dest::Matrix, mr::TBAMatrixRepresentation{Magnonic}, m::Operator{<
     return dest
 end
 
-# When the type of the field `commutator` is a type parameter of `LSWT`, a strange bug would occur when the terms of a quantum
-# spin system include both exchange interactions (e.g. the Heisenberg term) and linear onsite interactions (e.g. the potential
-# energy under an external magnetic field). This bug does not exist for QuantumLattices@v0.8.6 and SpinWaveTheory@v0.1.1, but
-# does for QuantumLattices@v0.8.9 and SpinWaveTheory@v0.1.2. This bug can be fixed by removing the type of the field `commutator`
-# as a type parameter of `LSWT` (After several tries, I found this solution although I still don't know why. I guess it may be
-# caused by a Julia bug.). This may cause a little bit of type instability but it turns out to be unimportant because the total
-# time of the code execution is at most of several seconds, which differs little compared to previous versions.
 """
-    LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:HPTransformation, Ω<:Image, H<:Image} <: AbstractTBA{K, H, AbstractMatrix}
+    LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:HPTransformation, Ω<:Image, H<:Image, C<:AbstractMatrix} <: AbstractTBA{K, H, C}
 
 Linear spin wave theory for magnetically ordered quantum lattice systems.
 """
-struct LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:HPTransformation, Ω<:Image, H<:Image} <: AbstractTBA{K, H, AbstractMatrix}
+struct LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:HPTransformation, Ω<:Image, H<:Image, C<:AbstractMatrix} <: AbstractTBA{K, H, C}
     lattice::L
     Hₛ::Hₛ
     hp::HP
     Ω::Ω
     H::H
-    commutator::AbstractMatrix
+    commutator::C
     function LSWT{K}(lattice::AbstractLattice, Hₛ::OperatorGenerator, hp::HPTransformation) where {K<:TBAKind{:BdG}}
         temp = hp(Hₛ)
         hilbert = Hilbert(Hₛ.hilbert, hp.magneticstructure)
@@ -198,7 +191,7 @@ struct LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:H
         Ω = RankFilter(0)(temp, table)
         H = RankFilter(2)(temp, table)
         commt = commutator(K(), hilbert)
-        new{K, typeof(lattice), typeof(Hₛ), typeof(hp), typeof(Ω), typeof(H)}(lattice, Hₛ, hp, Ω, H, commt)
+        new{K, typeof(lattice), typeof(Hₛ), typeof(hp), typeof(Ω), typeof(H), typeof(commt)}(lattice, Hₛ, hp, Ω, H, commt)
     end
 end
 @inline contentnames(::Type{<:LSWT}) = (:lattice, :Hₛ, :hp, :Ω, :H, :commutator)
