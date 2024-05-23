@@ -72,5 +72,5 @@ antiferromagnet = LSWT(lattice, hilbert, J, magneticstructure)
 
 k₁ = symbols("k₁", real=true)
 k₂ = symbols("k₂", real=true)
-m = matrix(antiferromagnet; k=[k₁, k₂], atol=0)
+m = matrix(antiferromagnet; k=[k₁, k₂], infinitesimal=0)
 ```

@@ -3,13 +3,13 @@ module SpinWaveTheory
 using LinearAlgebra: Diagonal, Hermitian, dot, eigen, norm
 using QuantumLattices: dimension, dtype, expand, kind, mul!, sub!
 using QuantumLattices: plain, Boundary, CompositeIndex, Hilbert, Index, OperatorUnitToTuple, Table, Term, indextype
-using QuantumLattices: Action, Algorithm, Assignment, Image, OperatorGenerator
-using QuantumLattices: ID, Operator, Operators, RankFilter, UnitSubstitution, idtype
+using QuantumLattices: lazy, Action, Algorithm, Assignment, Image, OperatorGenerator
+using QuantumLattices: ID, Operator, Operators, OperatorSum, RankFilter, UnitSubstitution, idtype
 using QuantumLattices: FID, Fock, SID, Spin
 using QuantumLattices: AbstractLattice, Neighbors, bonds, direction, icoordinate, rcoordinate
 using QuantumLattices: atol, rtol, delta, fulltype, reparameter
 using StaticArrays: SVector, SMatrix, @SMatrix
-using TightBindingApproximation: AbstractTBA, InelasticNeutronScatteringSpectra, TBAKind, TBAMatrixRepresentation
+using TightBindingApproximation: AbstractTBA, InelasticNeutronScatteringSpectra, Quadratic, QuadraticFormalize, TBAKind, TBAMatrixRepresentation
 using TimerOutputs: @timeit_debug
 
 import QuantumLattices: add!, matrix, update!
@@ -151,38 +151,36 @@ Get the commutation relation of the Holstein-Primakoff bosons.
 @inline commutator(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) = Diagonal(kron([1, -1], ones(Int64, sum(length, values(hilbert))÷2)))
 
 """
-    add!(dest::Matrix, mr::TBAMatrixRepresentation{Magnonic}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}, 2}}; atol=atol/5, kwargs...) -> typeof(dest)
+    add!(dest::OperatorSum, qf::QuadraticFormalize{Magnonic}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}, 2}}; kwargs...) -> typeof(dest)
 
-Get the matrix representation of an operator and add it to destination.
+Get the unified quadratic form of a rank-2 operator and add it to `destination`.
 """
-function add!(dest::Matrix, mr::TBAMatrixRepresentation{Magnonic}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}, 2}}; atol=atol/5, kwargs...)
+function add!(dest::OperatorSum, qf::QuadraticFormalize{Magnonic}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}, 2}}; kwargs...)
+    rcoord, icoord = rcoordinate(m), icoordinate(m)
     if m[1]==m[2]'
-        seq₁ = mr.table[m[1].index]
-        seq₂ = mr.table[m[2].index]
-        dest[seq₁, seq₁] += m.value+atol
-        dest[seq₂, seq₂] += m.value+atol
+        seq₁, seq₂ = qf.table[m[1]], qf.table[m[2]]
+        add!(dest, Quadratic(m.value, (seq₁, seq₁), rcoord, icoord))
+        add!(dest, Quadratic(m.value, (seq₂, seq₂), -rcoord, -icoord))
     else
-        coordinate = mr.gauge==:rcoordinate ? rcoordinate(m) : icoordinate(m)
-        phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(1im*dot(mr.k, coordinate)))
-        seq₁ = mr.table[m[1].index']
-        seq₂ = mr.table[m[2].index]
-        dest[seq₁, seq₂] += m.value*phase
-        dest[seq₂, seq₁] += m.value'*phase'
+        seq₁, seq₂ = qf.table[m[1]'], qf.table[m[2]]
+        add!(dest, Quadratic(m.value, (seq₁, seq₂), rcoord, icoord))
+        add!(dest, Quadratic(m.value', (seq₂, seq₁), -rcoord, -icoord))
     end
     return dest
 end
 
 """
-    LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:HPTransformation, Ω<:Image, H<:Image, C<:AbstractMatrix} <: AbstractTBA{K, H, C}
+    LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:HPTransformation, Ω<:Image, H<:Image, Hₘ<:Image, C<:AbstractMatrix} <: AbstractTBA{K, Hₘ, C}
 
 Linear spin wave theory for magnetically ordered quantum lattice systems.
 """
-struct LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:HPTransformation, Ω<:Image, H<:Image, C<:AbstractMatrix} <: AbstractTBA{K, H, C}
+struct LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:HPTransformation, Ω<:Image, H<:Image, Hₘ<:Image, C<:AbstractMatrix} <: AbstractTBA{K, Hₘ, C}
     lattice::L
     Hₛ::Hₛ
     hp::HP
     Ω::Ω
     H::H
+    Hₘ::Hₘ
     commutator::C
     function LSWT{K}(lattice::AbstractLattice, Hₛ::OperatorGenerator, hp::HPTransformation) where {K<:TBAKind{:BdG}}
         temp = hp(Hₛ)
@@ -190,8 +188,9 @@ struct LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:H
         table = Table(hilbert, Metric(K(), hilbert))
         Ω = RankFilter(0)(temp, table)
         H = RankFilter(2)(temp, table)
+        Hₘ = QuadraticFormalize{K, valtype(eltype(valtype(hp)))}(table)(H)
         commt = commutator(K(), hilbert)
-        new{K, typeof(lattice), typeof(Hₛ), typeof(hp), typeof(Ω), typeof(H), typeof(commt)}(lattice, Hₛ, hp, Ω, H, commt)
+        new{K, typeof(lattice), typeof(Hₛ), typeof(hp), typeof(Ω), typeof(H), typeof(Hₘ), typeof(commt)}(lattice, Hₛ, hp, Ω, H, Hₘ, commt)
     end
 end
 @inline contentnames(::Type{<:LSWT}) = (:lattice, :Hₛ, :hp, :Ω, :H, :commutator)
@@ -200,6 +199,7 @@ end
         update!(lswt.Hₛ; kwargs...)
         update!(lswt.Ω; kwargs...)
         update!(lswt.H; kwargs...)
+        update!(lswt.Hₘ, lswt.H)
     end
     return lswt
 end
@@ -212,7 +212,7 @@ Construct a LSWT.
 @inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Union{Term, Tuple{Term, Vararg{Term}}}, magneticstructure::MagneticStructure, boundary::Boundary=plain; neighbors::Union{Nothing, Int, Neighbors}=nothing)
     terms = wrapper(terms)
     isnothing(neighbors) && (neighbors=maximum(term->term.bondkind, terms))
-    Hₛ = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert, boundary; half=false)
+    Hₛ = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert, boundary, nothing, lazy; half=false)
     hp = HPTransformation{valtype(Hₛ)}(magneticstructure)
     return LSWT{Magnonic}(lattice, Hₛ, hp)
 end

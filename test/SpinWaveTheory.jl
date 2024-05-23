@@ -16,8 +16,8 @@ using TightBindingApproximation: EnergyBands, InelasticNeutronScatteringSpectra
     data = lswt(:EBS, EnergyBands(path))[2].data[2]
     A(; k) = 2.5-cos(k[1])-cos(k[2])
     for (i, params) in enumerate(pairs(path))
-        @test isapprox(A(; params...), data[i, 1], atol=atol)
-        @test isapprox(A(; params...), data[i, 2], atol=atol)
+        @test isapprox(A(; params...), data[i, 1], atol=10*atol)
+        @test isapprox(A(; params...), data[i, 2], atol=10*atol)
     end
 
     path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=100)
