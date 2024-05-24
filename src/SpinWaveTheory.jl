@@ -184,11 +184,10 @@ struct LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:H
     commutator::C
     function LSWT{K}(lattice::AbstractLattice, Hₛ::OperatorGenerator, hp::HPTransformation) where {K<:TBAKind{:BdG}}
         temp = hp(Hₛ)
+        Ω = RankFilter(0)(temp)
+        H = RankFilter(2)(temp)
         hilbert = Hilbert(Hₛ.hilbert, hp.magneticstructure)
-        table = Table(hilbert, Metric(K(), hilbert))
-        Ω = RankFilter(0)(temp, table)
-        H = RankFilter(2)(temp, table)
-        Hₘ = QuadraticFormalize{K}(table)(H)
+        Hₘ = QuadraticFormalize{K}(Table(hilbert, Metric(K(), hilbert)))(H)
         commt = commutator(K(), hilbert)
         new{K, typeof(lattice), typeof(Hₛ), typeof(hp), typeof(Ω), typeof(H), typeof(Hₘ), typeof(commt)}(lattice, Hₛ, hp, Ω, H, Hₘ, commt)
     end
@@ -212,7 +211,7 @@ Construct a LSWT.
 @inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Union{Term, Tuple{Term, Vararg{Term}}}, magneticstructure::MagneticStructure, boundary::Boundary=plain; neighbors::Union{Nothing, Int, Neighbors}=nothing)
     terms = wrapper(terms)
     isnothing(neighbors) && (neighbors=maximum(term->term.bondkind, terms))
-    Hₛ = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert, boundary, nothing, lazy; half=false)
+    Hₛ = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert, boundary, lazy; half=false)
     hp = HPTransformation{valtype(Hₛ)}(magneticstructure)
     return LSWT{Magnonic}(lattice, Hₛ, hp)
 end
@@ -230,7 +229,7 @@ function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeu
         @timeit_debug lswt.timer "spectra" for α=1:3, β=1:3
             factor = (delta(α, β) - ((norm(momentum)==0 || α>length(momentum) || β>length(momentum)) ? 0 : momentum[α]*momentum[β]/dot(momentum, momentum)))/√(2pi)/σ
             if !isapprox(abs(factor), 0, atol=atol, rtol=rtol)
-                matrix!(m, operators, α, β, lswt.frontend.H.table, momentum)
+                matrix!(m, operators, α, β, lswt.frontend.Hₘ.transformation.table, momentum)
                 diag = Diagonal(eigenvectors'*m*eigenvectors)
                 for (nₑ, e) in enumerate(inss.action.energies)
                     for j = (dimension(lswt.frontend)÷2+1):dimension(lswt.frontend)
