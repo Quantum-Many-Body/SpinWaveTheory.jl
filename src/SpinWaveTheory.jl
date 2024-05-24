@@ -188,7 +188,7 @@ struct LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:H
         table = Table(hilbert, Metric(K(), hilbert))
         Ω = RankFilter(0)(temp, table)
         H = RankFilter(2)(temp, table)
-        Hₘ = QuadraticFormalize{K, valtype(eltype(valtype(hp)))}(table)(H)
+        Hₘ = QuadraticFormalize{K}(table)(H)
         commt = commutator(K(), hilbert)
         new{K, typeof(lattice), typeof(Hₛ), typeof(hp), typeof(Ω), typeof(H), typeof(Hₘ), typeof(commt)}(lattice, Hₛ, hp, Ω, H, Hₘ, commt)
     end
