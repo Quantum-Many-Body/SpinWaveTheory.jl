@@ -2,7 +2,7 @@ module SpinWaveTheory
 
 using LinearAlgebra: Diagonal, Hermitian, dot, eigen, norm
 using QuantumLattices: dimension, dtype, expand, kind, mul!, sub!
-using QuantumLattices: plain, Boundary, CompositeIndex, Hilbert, Index, OperatorUnitToTuple, Table, Term, indextype
+using QuantumLattices: plain, CompositeIndex, Hilbert, Index, OperatorUnitToTuple, Table, Term, indextype
 using QuantumLattices: lazy, Action, Algorithm, Assignment, Image, OperatorGenerator
 using QuantumLattices: ID, Operator, Operators, OperatorSum, RankFilter, UnitSubstitution, idtype
 using QuantumLattices: FID, Fock, SID, Spin
@@ -204,14 +204,14 @@ end
 end
 
 """
-    LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Union{Term, Tuple{Term, Vararg{Term}}}, magneticstructure::MagneticStructure, boundary::Boundary=plain; neighbors::Union{Nothing, Int, Neighbors}=nothing)
+    LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Union{Term, Tuple{Term, Vararg{Term}}}, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing)
 
 Construct a LSWT.
 """
-@inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Union{Term, Tuple{Term, Vararg{Term}}}, magneticstructure::MagneticStructure, boundary::Boundary=plain; neighbors::Union{Nothing, Int, Neighbors}=nothing)
+@inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Union{Term, Tuple{Term, Vararg{Term}}}, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing)
     terms = wrapper(terms)
     isnothing(neighbors) && (neighbors=maximum(term->term.bondkind, terms))
-    Hₛ = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert, boundary, lazy; half=false)
+    Hₛ = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert, plain, lazy; half=false)
     hp = HPTransformation{valtype(Hₛ)}(magneticstructure)
     return LSWT{Magnonic}(lattice, Hₛ, hp)
 end
