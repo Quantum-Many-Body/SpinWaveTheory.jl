@@ -198,7 +198,7 @@ end
         update!(lswt.Hₛ; kwargs...)
         update!(lswt.Ω; kwargs...)
         update!(lswt.H; kwargs...)
-        update!(lswt.Hₘ, lswt.H)
+        update!(lswt.Hₘ; kwargs...)
     end
     return lswt
 end
