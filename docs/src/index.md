@@ -1,6 +1,6 @@
 # SpinWaveTheory
 
-[![Build Status](https://travis-ci.com/Quantum-Many-Body/SpinWaveTheory.jl.svg?branch=master)](https://travis-ci.com/Quantum-Many-Body/SpinWaveTheory.jl)
+[![CI](https://github.com/Quantum-Many-Body/SpinWaveTheory.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/Quantum-Many-Body/SpinWaveTheory.jl/actions/workflows/CI.yml)
 [![codecov](https://codecov.io/gh/Quantum-Many-Body/SpinWaveTheory.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/Quantum-Many-Body/SpinWaveTheory.jl)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://quantum-many-body.github.io/SpinWaveTheory.jl/dev/)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://quantum-many-body.github.io/SpinWaveTheory.jl/stable/)
