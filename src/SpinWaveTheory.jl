@@ -9,7 +9,7 @@ using QuantumLattices: FID, Fock, SID, Spin
 using QuantumLattices: AbstractLattice, Neighbors, bonds, direction, icoordinate, rcoordinate
 using QuantumLattices: atol, rtol, delta, fulltype, reparameter
 using StaticArrays: SVector, SMatrix, @SMatrix
-using TightBindingApproximation: AbstractTBA, InelasticNeutronScatteringSpectra, Quadratic, QuadraticFormalize, TBAKind, TBAMatrixRepresentation
+using TightBindingApproximation: AbstractTBA, InelasticNeutronScatteringSpectra, Quadratic, Quadraticization, TBAKind
 using TimerOutputs: @timeit_debug
 
 import QuantumLattices: add!, matrix, update!
@@ -151,11 +151,11 @@ Get the commutation relation of the Holstein-Primakoff bosons.
 @inline commutator(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) = Diagonal(kron([1, -1], ones(Int64, sum(length, values(hilbert))÷2)))
 
 """
-    add!(dest::OperatorSum, qf::QuadraticFormalize{Magnonic}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}, 2}}; kwargs...) -> typeof(dest)
+    add!(dest::OperatorSum, qf::Quadraticization{Magnonic}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}, 2}}; kwargs...) -> typeof(dest)
 
 Get the unified quadratic form of a rank-2 operator and add it to `destination`.
 """
-function add!(dest::OperatorSum, qf::QuadraticFormalize{Magnonic}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}, 2}}; kwargs...)
+function add!(dest::OperatorSum, qf::Quadraticization{Magnonic}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}, 2}}; kwargs...)
     rcoord, icoord = rcoordinate(m), icoordinate(m)
     if m[1]==m[2]'
         seq₁, seq₂ = qf.table[m[1]], qf.table[m[2]]
@@ -187,7 +187,7 @@ struct LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:H
         Ω = RankFilter(0)(temp)
         H = RankFilter(2)(temp)
         hilbert = Hilbert(Hₛ.hilbert, hp.magneticstructure)
-        Hₘ = QuadraticFormalize{K}(Table(hilbert, Metric(K(), hilbert)))(H)
+        Hₘ = Quadraticization{K}(Table(hilbert, Metric(K(), hilbert)))(H)
         commt = commutator(K(), hilbert)
         new{K, typeof(lattice), typeof(Hₛ), typeof(hp), typeof(Ω), typeof(H), typeof(Hₘ), typeof(commt)}(lattice, Hₛ, hp, Ω, H, Hₘ, commt)
     end
