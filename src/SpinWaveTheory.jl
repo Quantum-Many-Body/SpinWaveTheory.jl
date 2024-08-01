@@ -1,13 +1,9 @@
 module SpinWaveTheory
 
 using LinearAlgebra: Diagonal, Hermitian, dot, eigen, norm
-using QuantumLattices: dimension, dtype, expand, kind, mul!, sub!
-using QuantumLattices: plain, CompositeIndex, Hilbert, Index, OperatorUnitToTuple, Table, Term, indextype
-using QuantumLattices: lazy, Action, Algorithm, Assignment, Image, OperatorGenerator
-using QuantumLattices: ID, Operator, Operators, OperatorSum, RankFilter, UnitSubstitution, idtype
-using QuantumLattices: FID, Fock, SID, Spin
-using QuantumLattices: AbstractLattice, Neighbors, bonds, direction, icoordinate, rcoordinate
-using QuantumLattices: atol, rtol, delta, fulltype, reparameter
+using QuantumLattices: atol, lazy, plain, rtol
+using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, CompositeIndex, FID, Fock, Hilbert, ID, Image, Index, Neighbors, Operator, OperatorGenerator, Operators, OperatorSum, OperatorUnitToTuple, RankFilter, SID, Spin, Table, Term, UnitSubstitution
+using QuantumLattices: bonds, delta, dimension, direction, dtype, expand, fulltype, icoordinate, idtype, indextype, kind, mul!, rcoordinate, reparameter, sub!
 using StaticArrays: SVector, SMatrix, @SMatrix
 using TightBindingApproximation: AbstractTBA, InelasticNeutronScatteringSpectra, Quadratic, Quadraticization, TBAKind
 using TimerOutputs: @timeit_debug
