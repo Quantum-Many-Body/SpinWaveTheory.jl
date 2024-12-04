@@ -14,12 +14,8 @@ using TightBindingApproximation
 using SpinWaveTheory
 using Plots
 
-lattice = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
-cell = Lattice(
-    [0.0, 0.0], [1.0, 0.0];
-    name=:MagneticCell,
-    vectors=[[1.0, 1.0], [1.0, -1.0]]
-)
+lattice = Lattice([0.0, 0.0]; vectors=[[1.0, 0.0], [0.0, 1.0]])
+cell = Lattice([0.0, 0.0], [1.0, 0.0]; vectors=[[1.0, 1.0], [1.0, -1.0]])
 hilbert = Hilbert(site=>Spin{1//2}() for site=1:length(cell))
 J = Heisenberg(:J, 1.0, 1)
 magneticstructure = MagneticStructure(
@@ -33,7 +29,7 @@ spectra = antiferromagnet(
     :INSS,
     InelasticNeutronScatteringSpectra(
         path, range(0.0, 2.5, length=251);
-        fwhm=0.05, scale=x->log(1+log(1+log(1+x)))
+        fwhm=0.05, rescale=x->log(1+log(1+log(1+x)))
         )
 )
 energybands = antiferromagnet(:EB, EnergyBands(path))
@@ -72,5 +68,5 @@ antiferromagnet = LSWT(lattice, hilbert, J, magneticstructure)
 
 k₁ = symbols("k₁", real=true)
 k₂ = symbols("k₂", real=true)
-m = matrix(antiferromagnet; k=[k₁, k₂], infinitesimal=0)
+m = matrix(antiferromagnet, [k₁, k₂]; infinitesimal=0)
 ```

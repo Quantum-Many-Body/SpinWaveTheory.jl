@@ -12,7 +12,7 @@ using TightBindingApproximation
 using SpinWaveTheory
 using Plots
 
-lattice = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
+lattice = Lattice([0.0, 0.0]; vectors=[[1.0, 0.0], [0.0, 1.0]])
 hilbert = Hilbert(site=>Spin{1//2}() for site=1:length(lattice))
 J = Heisenberg(:J, -1.0, 1)
 magneticstructure = MagneticStructure(lattice, Dict(site=>[0, 0, 1] for site=1:length(lattice)))
@@ -21,7 +21,7 @@ ferromagnet = Algorithm(:SquareFM, LSWT(lattice, hilbert, J, magneticstructure))
 path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=100)
 spectra = ferromagnet(
     :INSS,
-    InelasticNeutronScatteringSpectra(path, range(0.0, 5.0, length=501); fwhm=0.2, scale=log)
+    InelasticNeutronScatteringSpectra(path, range(0.0, 5.0, length=501); fwhm=0.2, rescale=x->log(1+x))
 )
 energybands = ferromagnet(:dispersion, EnergyBands(path))
 

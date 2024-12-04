@@ -17,11 +17,7 @@ using TightBindingApproximation
 using SpinWaveTheory
 using Plots
 
-lattice = Lattice(
-    (0.0, 0.0), (0.0, √3/3);
-    name=:H2,
-    vectors=[[1.0, 0.0], [0.5, √3/2]]
-    )
+lattice = Lattice((0.0, 0.0), (0.0, √3/3); vectors=[[1.0, 0.0], [0.5, √3/2]])
 hilbert = Hilbert(site=>Spin{3//2}() for site=1:length(lattice))
 
 J₁ = Heisenberg(:J₁, 0.0, 1)
@@ -36,7 +32,7 @@ path = ReciprocalPath(reciprocals(lattice), (-2, -1)=>(2, 1), length=400)
 
 spectra = CrBr₃(
     :INSS,
-    InelasticNeutronScatteringSpectra(path, range(0.0, 15.0, length=301); fwhm=1.0, scale=log)
+    InelasticNeutronScatteringSpectra(path, range(0.0, 15.0, length=301); fwhm=1.0, rescale=x->log(1+x))
     )
 energybands = CrBr₃(:EB, EnergyBands(path))
 plt = plot()

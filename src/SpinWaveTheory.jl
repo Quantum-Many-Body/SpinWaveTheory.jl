@@ -1,21 +1,16 @@
 module SpinWaveTheory
 
-using LinearAlgebra: Diagonal, Hermitian, dot, eigen, norm
-using QuantumLattices: atol, lazy, plain, rtol
-using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, CompositeIndex, FID, Fock, Hilbert, ID, Image, Index, Neighbors, Operator, OperatorGenerator, Operators, OperatorSum, OperatorUnitToTuple, RankFilter, SID, Spin, Table, Term, UnitSubstitution
-using QuantumLattices: bonds, delta, dimension, direction, dtype, expand, fulltype, icoordinate, idtype, indextype, kind, mul!, rcoordinate, reparameter, sub!
+using LinearAlgebra: Diagonal, dot, eigen, norm
+using QuantumLattices: AbstractLattice, Algorithm, Assignment, CategorizedGenerator, CoordinatedIndex, FockIndex, Fock, Hilbert, ID, Index, Neighbors, Operator, OperatorGenerator, Operators, OperatorSum, OperatorUnitToTuple, RankFilter, SpinIndex, Spin, Table, Term, UnitSubstitution
+using QuantumLattices: atol, lazy, plain, rtol, bonds, delta, dimension, direction, dtype, fulltype, icoordinate, idtype, indextype, mul!, rcoordinate, reparameter, sub!
 using StaticArrays: SVector, SMatrix, @SMatrix
-using TightBindingApproximation: AbstractTBA, InelasticNeutronScatteringSpectra, Quadratic, Quadraticization, TBAKind
+using TightBindingApproximation: TBA, InelasticNeutronScatteringSpectra, Quadratic, Quadraticization, TBAKind
 using TimerOutputs: @timeit_debug
 
-import QuantumLattices: add!, matrix, update!
-import QuantumLattices: Metric
-import QuantumLattices: run!
-import QuantumLattices: optype
-import QuantumLattices: contentnames
+import QuantumLattices: Metric, add!, optype, run!, update!
 import TightBindingApproximation: commutator
 
-export HPTransformation, LSWT, MagneticStructure, Magnonic, rotation
+export HolsteinPrimakoff, LSWT, MagneticStructure, Magnonic, rotation
 
 """
     rotation(destination::AbstractVector{<:Number}; kwargs...) -> SMatrix{3, 3}
@@ -39,9 +34,9 @@ function rotation(destination::AbstractVector{<:Number}; kwargs...)
 end
 function rotation(destination::Tuple{Number, Number}; unit::Symbol=:radian)
     @assert unit∈(:degree, :radian) "rotation error: unit must be either `:degree` or `:radian`."
-    θ₁, ϕ₁ = destination[1], destination[2]
-    cosθ, sinθ = unit==:radian ? (cos(θ₁), sin(θ₁)) : (cosd(θ₁), sind(θ₁))
-    cosφ, sinφ = unit==:radian ? (cos(ϕ₁), sin(ϕ₁)) : (cosd(ϕ₁), sind(ϕ₁))
+    θ, ϕ = destination[1], destination[2]
+    cosθ, sinθ = unit==:radian ? (cos(θ), sin(θ)) : (cosd(θ), sind(θ))
+    cosφ, sinφ = unit==:radian ? (cos(ϕ), sin(ϕ)) : (cosd(ϕ), sind(ϕ))
     return @SMatrix [cosθ*cosφ -sinφ sinθ*cosφ;
                      cosθ*sinφ  cosφ sinθ*sinφ;
                          -sinθ     0      cosθ]
@@ -77,44 +72,44 @@ function MagneticStructure(cell::AbstractLattice, moments::Dict{Int, <:Union{Abs
 end
 
 """
-    HPTransformation{S<:Operators, U<:CompositeIndex, M<:MagneticStructure} <: UnitSubstitution{U, S}
+    HolsteinPrimakoff{S<:Operators, U<:CoordinatedIndex, M<:MagneticStructure} <: UnitSubstitution{U, S}
 
 Holstein-Primakoff transformation.
 """
-struct HPTransformation{S<:Operators, U<:CompositeIndex, M<:MagneticStructure} <: UnitSubstitution{U, S}
+struct HolsteinPrimakoff{S<:Operators, U<:CoordinatedIndex, M<:MagneticStructure} <: UnitSubstitution{U, S}
     magneticstructure::M
-    function HPTransformation{S}(magneticstructure::MagneticStructure) where {S<:Operators}
-        O = optype(HPTransformation, S)
+    function HolsteinPrimakoff{S}(magneticstructure::MagneticStructure) where {S<:Operators}
+        O = optype(HolsteinPrimakoff, S)
         new{Operators{O, idtype(O)}, eltype(eltype(S)), typeof(magneticstructure)}(magneticstructure)
     end
 end
-@inline Base.valtype(hp::HPTransformation) = valtype(typeof(hp))
-@inline Base.valtype(::Type{<:HPTransformation{S}}) where {S<:Operators} = S
-@inline Base.valtype(::Type{<:HPTransformation{S}}, ::Type{<:Operator}) where {S<:Operators} = S
-@inline Base.valtype(::Type{<:HPTransformation{S}}, ::Type{<:Operators}) where {S<:Operators} = S
-@inline function optype(::Type{<:HPTransformation}, ::Type{S}) where {S<:Operators}
-    V = promote_type(valtype(eltype(S)), Complex{Int})
+@inline Base.valtype(hp::HolsteinPrimakoff) = valtype(typeof(hp))
+@inline Base.valtype(::Type{<:HolsteinPrimakoff{S}}) where {S<:Operators} = S
+@inline Base.valtype(::Type{<:HolsteinPrimakoff{S}}, ::Type{<:Operator}) where {S<:Operators} = S
+@inline Base.valtype(::Type{<:HolsteinPrimakoff{S}}, ::Type{<:Operators}) where {S<:Operators} = S
+@inline function optype(::Type{<:HolsteinPrimakoff}, ::Type{S}) where {S<:Operators}
+    V = promote_type(dtype(S), Complex{Int})
     Iₒ = indextype(eltype(eltype(S)))
-    Iₜ = reparameter(Iₒ, :iid, FID{:b, Int, Rational{Int}, Int})
+    Iₜ = reparameter(Iₒ, :internal, FockIndex{:b, Int, Rational{Int}, Int})
     I = Iₜ<:Iₒ ? Iₒ : Iₜ
     U = reparameter(eltype(eltype(S)), :index, I)
     return fulltype(eltype(S), NamedTuple{(:value, :id), Tuple{V, ID{U}}})
 end
-@inline (hp::HPTransformation)(index::CompositeIndex; kwargs...) = Operator(1, index)
-function (hp::HPTransformation)(index::CompositeIndex{<:Index{Int, <:SID{S}}}; zoff::Bool=false) where S
+@inline (hp::HolsteinPrimakoff)(index::CoordinatedIndex; kwargs...) = Operator(1, index)
+function (hp::HolsteinPrimakoff)(index::CoordinatedIndex{<:Index{<:SpinIndex{S}}}; zoff::Bool=false) where S
     datatype = valtype(eltype(valtype(hp)))
     factor = √(2*S*one(datatype))/2
-    op₁ = Operator(1, replace(index, index=replace(index.index, iid=FID{:b}(1, 0, 1))))
-    op₂ = Operator(1, replace(index, index=replace(index.index, iid=FID{:b}(1, 0, 2))))
+    op₁ = Operator(1, CoordinatedIndex(Index(index.index.site, FockIndex{:b}(1, 0, 1)), index.rcoordinate, index.icoordinate))
+    op₂ = Operator(1, CoordinatedIndex(Index(index.index.site, FockIndex{:b}(1, 0, 2)), index.rcoordinate, index.icoordinate))
     xₗ = add!(add!(zero(valtype(hp)), factor*op₁), factor*op₂)
     yₗ = sub!(add!(zero(valtype(hp)), factor*op₁/1im), factor*op₂/1im)
     zₗ = zero(valtype(hp))
     zoff || sub!(add!(zₗ, S), op₂*op₁)
     x, y, z = hp.magneticstructure.rotations[index.index.site]*SVector(xₗ, yₗ, zₗ)
-    index.index.iid.tag=='x' && return x
-    index.index.iid.tag=='y' && return y
-    index.index.iid.tag=='z' && return z
-    index.index.iid.tag=='+' && return add!(x, mul!(y, 1im))
+    index.index.internal.tag=='x' && return x
+    index.index.internal.tag=='y' && return y
+    index.index.internal.tag=='z' && return z
+    index.index.internal.tag=='+' && return add!(x, mul!(y, 1im))
     return sub!(x, mul!(y, 1im))
 end
 
@@ -147,11 +142,11 @@ Get the commutation relation of the Holstein-Primakoff bosons.
 @inline commutator(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) = Diagonal(kron([1, -1], ones(Int64, sum(length, values(hilbert))÷2)))
 
 """
-    add!(dest::OperatorSum, qf::Quadraticization{Magnonic}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}, 2}}; kwargs...) -> typeof(dest)
+    add!(dest::OperatorSum, qf::Quadraticization{Magnonic}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index{<:FockIndex{:b}}}, 2}}; kwargs...) -> typeof(dest)
 
 Get the unified quadratic form of a rank-2 operator and add it to `destination`.
 """
-function add!(dest::OperatorSum, qf::Quadraticization{Magnonic}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}, 2}}; kwargs...)
+function add!(dest::OperatorSum, qf::Quadraticization{Magnonic}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index{<:FockIndex{:b}}}, 2}}; kwargs...)
     rcoord, icoord = rcoordinate(m), icoordinate(m)
     if m[1]==m[2]'
         seq₁, seq₂ = qf.table[m[1]], qf.table[m[2]]
@@ -166,35 +161,55 @@ function add!(dest::OperatorSum, qf::Quadraticization{Magnonic}, m::Operator{<:N
 end
 
 """
-    LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:HPTransformation, Ω<:Image, H<:Image, Hₘ<:Image, C<:AbstractMatrix} <: AbstractTBA{K, Hₘ, C}
+    LSWT{
+        K<:TBAKind{:BdG},
+        L<:AbstractLattice,
+        S<:OperatorGenerator,
+        HP<:HolsteinPrimakoff,
+        H₀<:CategorizedGenerator,
+        H₂<:CategorizedGenerator,
+        H<:CategorizedGenerator{<:OperatorSum{<:Quadratic}},
+        C<:AbstractMatrix
+    } <: TBA{K, H, C}
 
 Linear spin wave theory for magnetically ordered quantum lattice systems.
 """
-struct LSWT{K<:TBAKind{:BdG}, L<:AbstractLattice, Hₛ<:OperatorGenerator, HP<:HPTransformation, Ω<:Image, H<:Image, Hₘ<:Image, C<:AbstractMatrix} <: AbstractTBA{K, Hₘ, C}
+struct LSWT{
+    K<:TBAKind{:BdG},
+    L<:AbstractLattice,
+    S<:OperatorGenerator,
+    HP<:HolsteinPrimakoff,
+    H₀<:CategorizedGenerator,
+    H₂<:CategorizedGenerator,
+    Q<:Quadraticization,
+    H<:CategorizedGenerator{<:OperatorSum{<:Quadratic}},
+    C<:AbstractMatrix
+} <: TBA{K, H, C}
     lattice::L
-    Hₛ::Hₛ
-    hp::HP
-    Ω::Ω
+    system::S
+    holsteinprimakoff::HP
+    H₀::H₀
+    H₂::H₂
+    quadraticization::Q
     H::H
-    Hₘ::Hₘ
     commutator::C
-    function LSWT{K}(lattice::AbstractLattice, Hₛ::OperatorGenerator, hp::HPTransformation) where {K<:TBAKind{:BdG}}
-        temp = hp(Hₛ)
-        Ω = RankFilter(0)(temp)
-        H = RankFilter(2)(temp)
-        hilbert = Hilbert(Hₛ.hilbert, hp.magneticstructure)
-        Hₘ = Quadraticization{K}(Table(hilbert, Metric(K(), hilbert)))(H)
+    function LSWT{K}(lattice::AbstractLattice, system::OperatorGenerator, hp::HolsteinPrimakoff) where {K<:TBAKind{:BdG}}
+        temp = hp(system)
+        H₀ = RankFilter(0)(temp)
+        H₂ = RankFilter(2)(temp)
+        hilbert = Hilbert(system.hilbert, hp.magneticstructure)
+        quadraticization = Quadraticization{K}(Table(hilbert, Metric(K(), hilbert)))
+        H = quadraticization(H₂)
         commt = commutator(K(), hilbert)
-        new{K, typeof(lattice), typeof(Hₛ), typeof(hp), typeof(Ω), typeof(H), typeof(Hₘ), typeof(commt)}(lattice, Hₛ, hp, Ω, H, Hₘ, commt)
+        new{K, typeof(lattice), typeof(system), typeof(hp), typeof(H₀), typeof(H₂), typeof(quadraticization), typeof(H), typeof(commt)}(lattice, system, hp, H₀, H₂, quadraticization, H, commt)
     end
 end
-@inline contentnames(::Type{<:LSWT}) = (:lattice, :Hₛ, :hp, :Ω, :H, :commutator)
 @inline function update!(lswt::LSWT; k=nothing, kwargs...)
     if length(kwargs)>0
-        update!(lswt.Hₛ; kwargs...)
-        update!(lswt.Ω; kwargs...)
+        update!(lswt.system; kwargs...)
+        update!(lswt.H₀; kwargs...)
+        update!(lswt.H₂; kwargs...)
         update!(lswt.H; kwargs...)
-        update!(lswt.Hₘ; kwargs...)
     end
     return lswt
 end
@@ -207,28 +222,28 @@ Construct a LSWT.
 @inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Union{Term, Tuple{Term, Vararg{Term}}}, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing)
     terms = wrapper(terms)
     isnothing(neighbors) && (neighbors=maximum(term->term.bondkind, terms))
-    Hₛ = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert, plain, lazy; half=false)
-    hp = HPTransformation{valtype(Hₛ)}(magneticstructure)
-    return LSWT{Magnonic}(lattice, Hₛ, hp)
+    system = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert, plain, lazy; half=false)
+    hp = HolsteinPrimakoff{valtype(system)}(magneticstructure)
+    return LSWT{Magnonic}(lattice, system, hp)
 end
 @inline wrapper(x) = (x,)
 @inline wrapper(xs::Tuple) = xs
 
 # Inelastic neutron scattering spectra of magnetically ordered local spin systems.
 function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeutronScatteringSpectra})
-    operators = spinoperators(lswt.frontend.Hₛ.hilbert, lswt.frontend.hp)
-    m = zeros(promote_type(valtype(lswt.frontend), Complex{Int}), dimension(lswt.frontend), dimension(lswt.frontend))
+    operators = spinoperators(lswt.frontend.system.hilbert, lswt.frontend.holsteinprimakoff)
+    m = zeros(promote_type(dtype(lswt.frontend), Complex{Int}), dimension(lswt), dimension(lswt))
     σ = get(inss.action.options, :fwhm, 0.1)/2/√(2*log(2))
     data = zeros(Complex{Float64}, size(inss.data[3]))
     for (i, momentum) in enumerate(inss.action.reciprocalspace)
-        eigenvalues, eigenvectors = eigen(lswt; k=momentum, inss.action.options...)
+        eigenvalues, eigenvectors = eigen(lswt, momentum; inss.action.options...)
         @timeit_debug lswt.timer "spectra" for α=1:3, β=1:3
             factor = (delta(α, β) - ((norm(momentum)==0 || α>length(momentum) || β>length(momentum)) ? 0 : momentum[α]*momentum[β]/dot(momentum, momentum)))/√(2pi)/σ
             if !isapprox(abs(factor), 0, atol=atol, rtol=rtol)
-                matrix!(m, operators, α, β, lswt.frontend.Hₘ.transformation.table, momentum)
+                matrix!(m, operators, α, β, lswt.frontend.quadraticization.table, momentum)
                 diag = Diagonal(eigenvectors'*m*eigenvectors)
                 for (nₑ, e) in enumerate(inss.action.energies)
-                    for j = (dimension(lswt.frontend)÷2+1):dimension(lswt.frontend)
+                    for j = (dimension(lswt)÷2+1):dimension(lswt)
                         data[nₑ, i] += factor*diag[j, j]*exp(-(e-eigenvalues[j])^2/2/σ^2)
                     end
                 end
@@ -237,18 +252,18 @@ function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeu
     end
     isapprox(norm(imag(data)), 0, atol=atol, rtol=rtol) || @warn "run! warning: not negligible imaginary part ($(norm(imag(data))))."
     inss.data[3][:, :] .= real(data)[:, :]
-    inss.data[3][:, :] = get(inss.action.options, :scale, identity).(inss.data[3].+1)
+    inss.data[3][:, :] = get(inss.action.options, :rescale, identity).(inss.data[3])
 end
-function spinoperators(hilbert::Hilbert{<:Spin}, hp::HPTransformation{S, U}) where {S<:Operators, U<:CompositeIndex{<:Index{Int, <:SID}}}
+function spinoperators(hilbert::Hilbert{<:Spin}, hp::HolsteinPrimakoff{S, U}) where {S<:Operators, U<:CoordinatedIndex{<:Index{<:SpinIndex}}}
     M = fulltype(Operator, NamedTuple{(:value, :id), Tuple{valtype(eltype(S)), Tuple{U}}})
     x, y, z = Operators{M}(), Operators{M}(), Operators{M}()
     for (site, spin) in pairs(hilbert)
         rcoordinate = hp.magneticstructure.cell[site]
         icoordinate = zero(rcoordinate)
-        for sid in spin
-            sid.tag=='x' && add!(x, Operator(1, CompositeIndex(Index(site, sid), rcoordinate, icoordinate)))
-            sid.tag=='y' && add!(y, Operator(1, CompositeIndex(Index(site, sid), rcoordinate, icoordinate)))
-            sid.tag=='z' && add!(z, Operator(1, CompositeIndex(Index(site, sid), rcoordinate, icoordinate)))
+        for spinindex in spin
+            spinindex.tag=='x' && add!(x, Operator(1, CoordinatedIndex(Index(site, spinindex), rcoordinate, icoordinate)))
+            spinindex.tag=='y' && add!(y, Operator(1, CoordinatedIndex(Index(site, spinindex), rcoordinate, icoordinate)))
+            spinindex.tag=='z' && add!(z, Operator(1, CoordinatedIndex(Index(site, spinindex), rcoordinate, icoordinate)))
         end
     end
     x = hp(x, zoff=true)|>RankFilter(1)
