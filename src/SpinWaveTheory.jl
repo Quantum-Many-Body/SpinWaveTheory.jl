@@ -220,8 +220,6 @@ end
 Construct a LSWT.
 """
 @inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::OneOrMore{Term}, magneticstructure::MagneticStructure; neighbors::Union{Int, Neighbors}=nneighbor(terms))
-    terms = OneOrMore(terms)
-    isnothing(neighbors) && (neighbors=maximum(term->term.bondkind, terms))
     system = OperatorGenerator(bonds(magneticstructure.cell, neighbors), hilbert, terms, plain, lazy; half=false)
     hp = HolsteinPrimakoff{valtype(system)}(magneticstructure)
     return LSWT{Magnonic}(lattice, system, hp)
