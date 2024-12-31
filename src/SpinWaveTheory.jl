@@ -204,7 +204,7 @@ struct LSWT{
         new{K, typeof(lattice), typeof(system), typeof(hp), typeof(H₀), typeof(H₂), typeof(quadraticization), typeof(H), typeof(commt)}(lattice, system, hp, H₀, H₂, quadraticization, H, commt)
     end
 end
-@inline function update!(lswt::LSWT; k=nothing, kwargs...)
+@inline function update!(lswt::LSWT; kwargs...)
     if length(kwargs)>0
         update!(lswt.system; kwargs...)
         update!(lswt.H₀; kwargs...)
