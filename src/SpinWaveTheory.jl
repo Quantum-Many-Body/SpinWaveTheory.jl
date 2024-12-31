@@ -1,13 +1,13 @@
 module SpinWaveTheory
 
 using LinearAlgebra: Diagonal, dot, eigen, norm
-using QuantumLattices: AbstractLattice, Algorithm, Assignment, CategorizedGenerator, CoordinatedIndex, FockIndex, Fock, Hilbert, ID, Index, Neighbors, Operator, OperatorGenerator, Operators, OperatorSum, OperatorUnitToTuple, RankFilter, SpinIndex, Spin, Table, Term, UnitSubstitution
-using QuantumLattices: atol, lazy, plain, rtol, bonds, delta, dimension, direction, dtype, fulltype, icoordinate, idtype, indextype, mul!, rcoordinate, reparameter, sub!
+using QuantumLattices: AbstractLattice, Algorithm, Assignment, CategorizedGenerator, CoordinatedIndex, FockIndex, Fock, Hilbert, ID, Index, Neighbors, OneOrMore, Operator, OperatorGenerator, OperatorIndexToTuple, Operators, OperatorSum, RankFilter, SpinIndex, Spin, Table, Term, UnitSubstitution
+using QuantumLattices: atol, lazy, plain, rtol, bonds, delta, dimension, direction, fulltype, icoordinate, idtype, indextype, mul!, nneighbor, rcoordinate, reparameter, scalartype, sub!
 using StaticArrays: SVector, SMatrix, @SMatrix
 using TightBindingApproximation: TBA, InelasticNeutronScatteringSpectra, Quadratic, Quadraticization, TBAKind
 using TimerOutputs: @timeit_debug
 
-import QuantumLattices: Metric, add!, optype, run!, update!
+import QuantumLattices: Metric, add!, operatortype, run!, update!
 import TightBindingApproximation: commutator
 
 export HolsteinPrimakoff, LSWT, MagneticStructure, Magnonic, rotation
@@ -60,7 +60,7 @@ Construct the magnetic structure on a given lattice with the given moments.
 """
 function MagneticStructure(cell::AbstractLattice, moments::Dict{Int, <:Union{AbstractVector, NTuple{2, Number}}}; unit::Symbol=:radian)
     @assert length(cell)==length(moments) "MagneticStructure error: mismatched magnetic cell and moments."
-    datatype = promote_type(dtype(cell), eltype(valtype(moments)))
+    datatype = promote_type(scalartype(cell), eltype(valtype(moments)))
     new = Dict{Int, Vector{datatype}}()
     rotations = Dict{Int, SMatrix{3, 3, datatype, 9}}()
     for site=1:length(cell)
@@ -79,7 +79,7 @@ Holstein-Primakoff transformation.
 struct HolsteinPrimakoff{S<:Operators, U<:CoordinatedIndex, M<:MagneticStructure} <: UnitSubstitution{U, S}
     magneticstructure::M
     function HolsteinPrimakoff{S}(magneticstructure::MagneticStructure) where {S<:Operators}
-        O = optype(HolsteinPrimakoff, S)
+        O = operatortype(HolsteinPrimakoff, S)
         new{Operators{O, idtype(O)}, eltype(eltype(S)), typeof(magneticstructure)}(magneticstructure)
     end
 end
@@ -87,8 +87,8 @@ end
 @inline Base.valtype(::Type{<:HolsteinPrimakoff{S}}) where {S<:Operators} = S
 @inline Base.valtype(::Type{<:HolsteinPrimakoff{S}}, ::Type{<:Operator}) where {S<:Operators} = S
 @inline Base.valtype(::Type{<:HolsteinPrimakoff{S}}, ::Type{<:Operators}) where {S<:Operators} = S
-@inline function optype(::Type{<:HolsteinPrimakoff}, ::Type{S}) where {S<:Operators}
-    V = promote_type(dtype(S), Complex{Int})
+@inline function operatortype(::Type{<:HolsteinPrimakoff}, ::Type{S}) where {S<:Operators}
+    V = promote_type(scalartype(S), Complex{Int})
     Iₒ = indextype(eltype(eltype(S)))
     Iₜ = reparameter(Iₒ, :internal, FockIndex{:b, Int, Rational{Int}, Int})
     I = Iₜ<:Iₒ ? Iₒ : Iₜ
@@ -128,11 +128,11 @@ Magnonic quantum lattice system.
 struct Magnonic <: TBAKind{:BdG} end
 
 """
-    Metric(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) -> OperatorUnitToTuple
+    Metric(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) -> OperatorIndexToTuple
 
 Get the index-to-tuple metric for a quantum spin system after the Holstein-Primakoff transformation.
 """
-@inline @generated Metric(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) = OperatorUnitToTuple(:nambu, :site)
+@inline @generated Metric(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) = OperatorIndexToTuple(:nambu, :site)
 
 """
     commutator(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) -> Diagonal
@@ -215,24 +215,22 @@ end
 end
 
 """
-    LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Union{Term, Tuple{Term, Vararg{Term}}}, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing)
+    LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::OneOrMore{Term}, magneticstructure::MagneticStructure; neighbors::Union{Int, Neighbors}=nneighbor(terms))
 
 Construct a LSWT.
 """
-@inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::Union{Term, Tuple{Term, Vararg{Term}}}, magneticstructure::MagneticStructure; neighbors::Union{Nothing, Int, Neighbors}=nothing)
-    terms = wrapper(terms)
+@inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::OneOrMore{Term}, magneticstructure::MagneticStructure; neighbors::Union{Int, Neighbors}=nneighbor(terms))
+    terms = OneOrMore(terms)
     isnothing(neighbors) && (neighbors=maximum(term->term.bondkind, terms))
-    system = OperatorGenerator(terms, bonds(magneticstructure.cell, neighbors), hilbert, plain, lazy; half=false)
+    system = OperatorGenerator(bonds(magneticstructure.cell, neighbors), hilbert, terms, plain, lazy; half=false)
     hp = HolsteinPrimakoff{valtype(system)}(magneticstructure)
     return LSWT{Magnonic}(lattice, system, hp)
 end
-@inline wrapper(x) = (x,)
-@inline wrapper(xs::Tuple) = xs
 
 # Inelastic neutron scattering spectra of magnetically ordered local spin systems.
 function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeutronScatteringSpectra})
     operators = spinoperators(lswt.frontend.system.hilbert, lswt.frontend.holsteinprimakoff)
-    m = zeros(promote_type(dtype(lswt.frontend), Complex{Int}), dimension(lswt), dimension(lswt))
+    m = zeros(promote_type(scalartype(lswt.frontend), Complex{Int}), dimension(lswt), dimension(lswt))
     σ = get(inss.action.options, :fwhm, 0.1)/2/√(2*log(2))
     data = zeros(Complex{Float64}, size(inss.data[3]))
     for (i, momentum) in enumerate(inss.action.reciprocalspace)

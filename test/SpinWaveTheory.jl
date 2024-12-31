@@ -25,7 +25,7 @@ end
     hilbert = Hilbert(Spin{1//2}(), length(lattice))
     J = Heisenberg(:J, -1.0, 1)
     ms = MagneticStructure(lattice, Dict(site=>iseven(site) ? [0, 0, 1] : [0, 0, -1] for site=1:length(lattice)))
-    spins = Generator((J,), bonds(lattice, 1), hilbert; half=false)
+    spins = Generator(bonds(lattice, 1), hilbert, J; half=false)
     hp = HolsteinPrimakoff{valtype(spins)}(ms)
     @test valtype(hp) == valtype(typeof(hp)) == valtype(typeof(hp), valtype(spins)) == valtype(typeof(hp), eltype(spins))
     bosons = expand(hp(spins))
