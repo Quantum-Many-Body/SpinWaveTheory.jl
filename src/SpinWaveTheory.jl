@@ -49,19 +49,19 @@ The magnetic structure of an ordered quantum lattice system.
 """
 struct MagneticStructure{L<:AbstractLattice, D<:Number}
     cell::L
-    moments::Dict{Int, Vector{D}}
+    moments::Dict{Int, SVector{3, D}}
     rotations::Dict{Int, SMatrix{3, 3, D, 9}}
 end
 
 """
-    MagneticStructure(cell::AbstractLattice, moments::Dict{Int, <:Union{AbstractVector, NTuple{2, Number}}}; unit::Symbol=:radian)
+    MagneticStructure(cell::AbstractLattice, moments::Dict{Int, <:Union{AbstractVector{<:Number}, NTuple{2, Number}}}; unit::Symbol=:radian)
 
 Construct the magnetic structure on a given lattice with the given moments.
 """
-function MagneticStructure(cell::AbstractLattice, moments::Dict{Int, <:Union{AbstractVector, NTuple{2, Number}}}; unit::Symbol=:radian)
+function MagneticStructure(cell::AbstractLattice, moments::Dict{Int, <:Union{AbstractVector{<:Number}, NTuple{2, Number}}}; unit::Symbol=:radian)
     @assert length(cell)==length(moments) "MagneticStructure error: mismatched magnetic cell and moments."
     datatype = promote_type(scalartype(cell), eltype(valtype(moments)))
-    new = Dict{Int, Vector{datatype}}()
+    new = Dict{Int, SVector{3, datatype}}()
     rotations = Dict{Int, SMatrix{3, 3, datatype, 9}}()
     for site=1:length(cell)
         destination = map(i->convert(datatype, i), moments[site])
@@ -105,7 +105,7 @@ function (hp::HolsteinPrimakoff)(index::CoordinatedIndex{<:Index{<:SpinIndex{S}}
     yₗ = sub!(add!(zero(valtype(hp)), factor*op₁/1im), factor*op₂/1im)
     zₗ = zero(valtype(hp))
     zoff || sub!(add!(zₗ, S), op₂*op₁)
-    x, y, z = hp.magneticstructure.rotations[index.index.site]*SVector(xₗ, yₗ, zₗ)
+    x, y, z = hp.magneticstructure.rotations[index.index.site] * SVector(xₗ, yₗ, zₗ)
     index.index.internal.tag=='x' && return x
     index.index.internal.tag=='y' && return y
     index.index.internal.tag=='z' && return z
