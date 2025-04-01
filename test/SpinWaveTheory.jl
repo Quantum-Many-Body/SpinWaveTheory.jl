@@ -51,7 +51,7 @@ end
 
     update!(lswt; h=-0.5)
     path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=8)
-    data = lswt(:EBS, EnergyBands(path))[2].data[2]
+    data = lswt(:EBS, EnergyBands(path)).data.values
     A(k) = 2.5-cos(k[1])-cos(k[2])
     for (i, k) in enumerate(path)
         @test isapprox(A(k), data[i, 1], atol=10*atol)

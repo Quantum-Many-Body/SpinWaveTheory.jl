@@ -230,7 +230,7 @@ function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeu
     operators = spinoperators(lswt.frontend.system.hilbert, lswt.frontend.holsteinprimakoff)
     m = zeros(promote_type(scalartype(lswt.frontend), Complex{Int}), dimension(lswt), dimension(lswt))
     σ = get(inss.action.options, :fwhm, 0.1)/2/√(2*log(2))
-    data = zeros(Complex{Float64}, size(inss.data[3]))
+    data = zeros(Complex{Float64}, size(inss.data.values))
     for (i, momentum) in enumerate(inss.action.reciprocalspace)
         eigenvalues, eigenvectors = eigen(lswt, momentum; inss.action.options...)
         @timeit_debug lswt.timer "spectra" for α=1:3, β=1:3
@@ -247,8 +247,8 @@ function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeu
         end
     end
     isapprox(norm(imag(data)), 0, atol=atol, rtol=rtol) || @warn "run! warning: not negligible imaginary part ($(norm(imag(data))))."
-    inss.data[3][:, :] .= real(data)[:, :]
-    inss.data[3][:, :] = get(inss.action.options, :rescale, identity).(inss.data[3])
+    inss.data.values[:, :] .= real(data)[:, :]
+    inss.data.values[:, :] = get(inss.action.options, :rescale, identity).(inss.data.values)
 end
 function spinoperators(hilbert::Hilbert{<:Spin}, hp::HolsteinPrimakoff{S, U}) where {S<:Operators, U<:CoordinatedIndex{<:Index{<:SpinIndex}}}
     M = fulltype(Operator, NamedTuple{(:value, :id), Tuple{valtype(eltype(S)), Tuple{U}}})
