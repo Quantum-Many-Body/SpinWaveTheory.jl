@@ -21,7 +21,8 @@ ferromagnet = Algorithm(:SquareFM, LSWT(lattice, hilbert, J, magneticstructure))
 path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=100)
 spectra = ferromagnet(
     :INSS,
-    InelasticNeutronScatteringSpectra(path, range(0.0, 5.0, length=501); fwhm=0.2, rescale=x->log(1+x))
+    InelasticNeutronScatteringSpectra(path, range(0.0, 5.0, length=501));
+    fwhm=0.2, rescale=x->log(1+x)
 )
 energybands = ferromagnet(:dispersion, EnergyBands(path))
 

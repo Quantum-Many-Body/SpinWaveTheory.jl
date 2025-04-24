@@ -27,10 +27,8 @@ antiferromagnet = Algorithm(:SquareAFM, LSWT(lattice, hilbert, J, magneticstruct
 path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=100)
 spectra = antiferromagnet(
     :INSS,
-    InelasticNeutronScatteringSpectra(
-        path, range(0.0, 2.5, length=251);
-        fwhm=0.05, rescale=x->log(1+log(1+log(1+x)))
-        )
+    InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=251));
+    fwhm=0.05, rescale=x->log(1+log(1+log(1+x)))
 )
 energybands = antiferromagnet(:EB, EnergyBands(path))
 

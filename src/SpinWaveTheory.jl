@@ -226,13 +226,13 @@ Construct a LSWT.
 end
 
 # Inelastic neutron scattering spectra of magnetically ordered local spin systems.
-function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeutronScatteringSpectra})
+function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeutronScatteringSpectra}; fwhm::Real=0.1, rescale::Function=identity, options...)
     operators = spinoperators(lswt.frontend.system.hilbert, lswt.frontend.holsteinprimakoff)
     m = zeros(promote_type(scalartype(lswt.frontend), Complex{Int}), dimension(lswt), dimension(lswt))
-    σ = get(inss.action.options, :fwhm, 0.1)/2/√(2*log(2))
+    σ = fwhm / 2 / √(2*log(2))
     data = zeros(Complex{Float64}, size(inss.data.values))
     for (i, momentum) in enumerate(inss.action.reciprocalspace)
-        eigenvalues, eigenvectors = eigen(lswt, momentum; inss.action.options...)
+        eigenvalues, eigenvectors = eigen(lswt, momentum; options...)
         @timeit_debug lswt.timer "spectra" for α=1:3, β=1:3
             factor = (delta(α, β) - ((norm(momentum)==0 || α>length(momentum) || β>length(momentum)) ? 0 : momentum[α]*momentum[β]/dot(momentum, momentum)))/√(2pi)/σ
             if !isapprox(abs(factor), 0, atol=atol, rtol=rtol)
@@ -248,7 +248,7 @@ function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeu
     end
     isapprox(norm(imag(data)), 0, atol=atol, rtol=rtol) || @warn "run! warning: not negligible imaginary part ($(norm(imag(data))))."
     inss.data.values[:, :] .= real(data)[:, :]
-    inss.data.values[:, :] = get(inss.action.options, :rescale, identity).(inss.data.values)
+    inss.data.values[:, :] = rescale.(inss.data.values)
 end
 function spinoperators(hilbert::Hilbert{<:Spin}, hp::HolsteinPrimakoff{S, U}) where {S<:Operators, U<:CoordinatedIndex{<:Index{<:SpinIndex}}}
     M = fulltype(Operator, NamedTuple{(:value, :id), Tuple{valtype(eltype(S)), Tuple{U}}})

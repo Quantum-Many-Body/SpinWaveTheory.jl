@@ -32,7 +32,8 @@ path = ReciprocalPath(reciprocals(lattice), (-2, -1)=>(2, 1), length=400)
 
 spectra = CrBr₃(
     :INSS,
-    InelasticNeutronScatteringSpectra(path, range(0.0, 15.0, length=301); fwhm=1.0, rescale=x->log(1+x))
+    InelasticNeutronScatteringSpectra(path, range(0.0, 15.0, length=301));
+    fwhm=1.0, rescale=x->log(1+x)
     )
 energybands = CrBr₃(:EB, EnergyBands(path))
 plt = plot()
