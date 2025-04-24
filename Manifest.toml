@@ -599,9 +599,9 @@ version = "1.11.0"
 
 [[deps.TightBindingApproximation]]
 deps = ["Contour", "DelimitedFiles", "LinearAlgebra", "Optim", "Printf", "QuantumLattices", "RecipesBase", "StaticArrays", "TimerOutputs"]
-git-tree-sha1 = "54ed3d4459e3a8e368861cdac5ecb9ad6d1d7376"
+git-tree-sha1 = "b47c0f80e4370af46fa1c65bf41fd6a51c441f0b"
 uuid = "d3576f78-cb9d-4774-9dc5-b247cf392ff4"
-version = "0.3.1"
+version = "0.3.2"
 
 [[deps.TimerOutputs]]
 deps = ["ExprTools", "Printf"]
