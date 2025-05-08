@@ -479,9 +479,9 @@ version = "1.3.0"
 
 [[deps.QuantumLattices]]
 deps = ["DataStructures", "DelimitedFiles", "Format", "HalfIntegers", "IndentWrappers", "InteractiveUtils", "LaTeXStrings", "Latexify", "LinearAlgebra", "NearestNeighbors", "Printf", "Random", "RecipesBase", "SparseArrays", "StaticArrays", "TimerOutputs"]
-git-tree-sha1 = "c02c01f70d0183588437d545c0296d0c7e916bbc"
+git-tree-sha1 = "4d7bce27d7912c72171d03e1b1a9c5f7629f5ee0"
 uuid = "78ae1a1f-1d5d-5174-b61c-66e31b2346dc"
-version = "0.12.1"
+version = "0.12.2"
 
 [[deps.Random]]
 deps = ["SHA"]
@@ -599,9 +599,9 @@ version = "1.11.0"
 
 [[deps.TightBindingApproximation]]
 deps = ["Contour", "DelimitedFiles", "LinearAlgebra", "Optim", "Printf", "QuantumLattices", "RecipesBase", "StaticArrays", "TimerOutputs"]
-git-tree-sha1 = "b47c0f80e4370af46fa1c65bf41fd6a51c441f0b"
+git-tree-sha1 = "741c78d576f43b0d5879041d5fb46715e545b472"
 uuid = "d3576f78-cb9d-4774-9dc5-b247cf392ff4"
-version = "0.3.2"
+version = "0.3.3"
 
 [[deps.TimerOutputs]]
 deps = ["ExprTools", "Printf"]
