@@ -8,7 +8,7 @@ using TightBindingApproximation: TBA, InelasticNeutronScatteringSpectra, Quadrat
 using TimerOutputs: @timeit_debug
 
 import QuantumLattices: Metric, add!, operatortype, run!, update!
-import TightBindingApproximation: commutator
+import TightBindingApproximation: InelasticNeutronScatteringSpectraData, commutator
 
 export HolsteinPrimakoff, LSWT, MagneticStructure, Magnonic, rotation
 
@@ -227,10 +227,10 @@ end
 
 # Inelastic neutron scattering spectra of magnetically ordered local spin systems.
 function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeutronScatteringSpectra}; fwhm::Real=0.1, rescale::Function=identity, options...)
+    result = zeros(Complex{Float64}, length(inss.action.energies), length(inss.action.reciprocalspace))
     operators = spinoperators(lswt.frontend.system.hilbert, lswt.frontend.holsteinprimakoff)
     m = zeros(promote_type(scalartype(lswt.frontend), Complex{Int}), dimension(lswt), dimension(lswt))
     σ = fwhm / 2 / √(2*log(2))
-    data = zeros(Complex{Float64}, size(inss.data.values))
     for (i, momentum) in enumerate(inss.action.reciprocalspace)
         eigenvalues, eigenvectors = eigen(lswt, momentum; options...)
         @timeit_debug lswt.timer "spectra" for α=1:3, β=1:3
@@ -240,15 +240,14 @@ function run!(lswt::Algorithm{<:LSWT{Magnonic}}, inss::Assignment{<:InelasticNeu
                 diag = Diagonal(eigenvectors'*m*eigenvectors)
                 for (nₑ, e) in enumerate(inss.action.energies)
                     for j = (dimension(lswt)÷2+1):dimension(lswt)
-                        data[nₑ, i] += factor*diag[j, j]*exp(-(e-eigenvalues[j])^2/2/σ^2)
+                        result[nₑ, i] += factor*diag[j, j]*exp(-(e-eigenvalues[j])^2/2/σ^2)
                     end
                 end
             end
         end
     end
-    isapprox(norm(imag(data)), 0, atol=atol, rtol=rtol) || @warn "run! warning: not negligible imaginary part ($(norm(imag(data))))."
-    inss.data.values[:, :] .= real(data)[:, :]
-    inss.data.values[:, :] = rescale.(inss.data.values)
+    isapprox(norm(imag(result)), 0, atol=atol, rtol=rtol) || @warn "run! warning: not negligible imaginary part ($(norm(imag(result))))."
+    return InelasticNeutronScatteringSpectraData(inss.action.reciprocalspace, inss.action.energies, rescale.(real(result)))
 end
 function spinoperators(hilbert::Hilbert{<:Spin}, hp::HolsteinPrimakoff{S, U}) where {S<:Operators, U<:CoordinatedIndex{<:Index{<:SpinIndex}}}
     M = fulltype(Operator, NamedTuple{(:value, :id), Tuple{valtype(eltype(S)), Tuple{U}}})
