@@ -1,13 +1,13 @@
 module SpinWaveTheory
 
 using LinearAlgebra: Diagonal, dot, eigen, norm
-using QuantumLattices: AbstractLattice, Algorithm, Assignment, CategorizedGenerator, CoordinatedIndex, FockIndex, Fock, Hilbert, ID, Index, Neighbors, OneOrMore, Operator, OperatorGenerator, OperatorIndexToTuple, Operators, OperatorSum, RankFilter, SpinIndex, Spin, Table, Term, UnitSubstitution
+using QuantumLattices: AbstractLattice, Algorithm, Assignment, CategorizedGenerator, CoordinatedIndex, FockIndex, Fock, Hilbert, Index, LinearTransformation, Neighbors, OneOrMore, Operator, OperatorGenerator, OperatorIndexToTuple, Operators, OperatorSum, SpinIndex, Spin, Table, Term, UnitSubstitution, ZeroAtLeast
 using QuantumLattices: atol, lazy, plain, rtol, bonds, delta, dimension, direction, fulltype, icoordinate, idtype, indextype, mul!, nneighbor, rcoordinate, reparameter, scalartype, sub!
 using StaticArrays: SVector, SMatrix, @SMatrix
 using TightBindingApproximation: TBA, InelasticNeutronScatteringSpectra, Quadratic, Quadraticization, TBAKind
 using TimerOutputs: @timeit_debug
 
-import QuantumLattices: Metric, add!, operatortype, run!, update!
+import QuantumLattices: Metric, add!, operatortype, rank, run!, update!
 import TightBindingApproximation: InelasticNeutronScatteringSpectraData, commutator
 
 export HolsteinPrimakoff, LSWT, MagneticStructure, Magnonic, rotation
@@ -90,10 +90,10 @@ end
 @inline function operatortype(::Type{<:HolsteinPrimakoff}, ::Type{S}) where {S<:Operators}
     V = promote_type(scalartype(S), Complex{Int})
     Iₒ = indextype(eltype(eltype(S)))
-    Iₜ = reparameter(Iₒ, :internal, FockIndex{:b, Int, Rational{Int}, Int})
+    Iₜ = reparameter(Iₒ, :internal, FockIndex{:b, Int, Rational{Int}})
     I = Iₜ<:Iₒ ? Iₒ : Iₜ
     U = reparameter(eltype(eltype(S)), :index, I)
-    return fulltype(eltype(S), NamedTuple{(:value, :id), Tuple{V, ID{U}}})
+    return fulltype(eltype(S), NamedTuple{(:value, :id), Tuple{V, ZeroAtLeast{U}}})
 end
 @inline (hp::HolsteinPrimakoff)(index::CoordinatedIndex; kwargs...) = Operator(1, index)
 function (hp::HolsteinPrimakoff)(index::CoordinatedIndex{<:Index{<:SpinIndex{S}}}; zoff::Bool=false) where S
@@ -142,11 +142,11 @@ Get the commutation relation of the Holstein-Primakoff bosons.
 @inline commutator(::Magnonic, hilbert::Hilbert{<:Fock{:b}}) = Diagonal(kron([1, -1], ones(Int64, sum(length, values(hilbert))÷2)))
 
 """
-    add!(dest::OperatorSum, qf::Quadraticization{Magnonic}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index{<:FockIndex{:b}}}, 2}}; kwargs...) -> typeof(dest)
+    add!(dest::OperatorSum, qf::Quadraticization{Magnonic}, m::Operator{<:Number, <:NTuple{2, CoordinatedIndex{<:Index{<:FockIndex{:b}}}}}; kwargs...) -> typeof(dest)
 
 Get the unified quadratic form of a rank-2 operator and add it to `destination`.
 """
-function add!(dest::OperatorSum, qf::Quadraticization{Magnonic}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index{<:FockIndex{:b}}}, 2}}; kwargs...)
+function add!(dest::OperatorSum, qf::Quadraticization{Magnonic}, m::Operator{<:Number, <:NTuple{2, CoordinatedIndex{<:Index{<:FockIndex{:b}}}}}; kwargs...)
     rcoord, icoord = rcoordinate(m), icoordinate(m)
     if m[1]==m[2]'
         seq₁, seq₂ = qf.table[m[1]], qf.table[m[2]]
@@ -159,6 +159,26 @@ function add!(dest::OperatorSum, qf::Quadraticization{Magnonic}, m::Operator{<:N
     end
     return dest
 end
+
+"""
+    RankFilter{R} <: LinearTransformation
+
+Rank filter, which filters out the `Operator` with a given rank `R`.
+"""
+struct RankFilter{R} <: LinearTransformation
+    function RankFilter(rank::Int)
+        @assert rank>=0 "RankFilter error: the wanted rank must be non-negative."
+        new{rank}()
+    end
+end
+@inline Base.valtype(::Type{RankFilter{R}}, M::Type{<:Operator}) where R = reparameter(M, :id, NTuple{R, eltype(M)})
+@inline function Base.valtype(R::Type{<:RankFilter}, M::Type{<:OperatorSum})
+    V = valtype(R, eltype(M))
+    return OperatorSum{V, idtype(V)}
+end
+@inline rank(rf::RankFilter) = rank(typeof(rf))
+@inline rank(::Type{RankFilter{R}}) where R = R
+@inline @generated (rf::RankFilter)(m::Operator; kwargs...) = rank(m)==rank(rf) ? :(m) : 0
 
 """
     LSWT{

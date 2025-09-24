@@ -1,7 +1,8 @@
 using LinearAlgebra: norm
 using Plots: plot, plot!, savefig
-using QuantumLattices: atol, Algorithm, Generator, Heisenberg, Hilbert, Lattice, Operator, Operators, ReciprocalPath, Spin, Zeeman, 𝕓, azimuth, azimuthd, bonds, expand, polar, polard, reciprocals, update!, @rectangle_str
+using QuantumLattices: atol, Algorithm, Generator, Heisenberg, Hilbert, Lattice, Operator, Operators, ReciprocalPath, Spin, Zeeman, 𝕒, 𝕒⁺, azimuth, azimuthd, bonds, expand, polar, polard, reciprocals, update!, @rectangle_str
 using SpinWaveTheory
+using SpinWaveTheory: RankFilter
 using TightBindingApproximation: EnergyBands, InelasticNeutronScatteringSpectra
 
 @time @testset "rotation" begin
@@ -20,7 +21,7 @@ end
     @test magneticstructure.rotations[2] == [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
 end
 
-@time @testset "HolsteinPrimakoff" begin
+@time @testset "HolsteinPrimakoff & RankFilter" begin
     lattice = Lattice([0.0, 0.0], [1.0, 0.0])
     hilbert = Hilbert(Spin{1//2}(), length(lattice))
     J = Heisenberg(:J, -1.0, 1)
@@ -30,14 +31,25 @@ end
     @test valtype(hp) == valtype(typeof(hp)) == valtype(typeof(hp), valtype(spins)) == valtype(typeof(hp), eltype(spins))
     bosons = expand(hp(spins))
     @test bosons == Operators(
-        Operator(0.5, 𝕓(2, 1, 0, 1, [1.0, 0.0], [0.0, 0.0]), 𝕓(1, 1, 0, 1, [0.0, 0.0], [0.0, 0.0])),
-        Operator(0.5, 𝕓(2, 1, 0, 2, [1.0, 0.0], [0.0, 0.0]), 𝕓(1, 1, 0, 2, [0.0, 0.0], [0.0, 0.0])),
+        Operator(0.5, 𝕒(2, 1, 0, [1.0, 0.0], [0.0, 0.0]), 𝕒(1, 1, 0, [0.0, 0.0], [0.0, 0.0])),
+        Operator(0.5, 𝕒⁺(2, 1, 0, [1.0, 0.0], [0.0, 0.0]), 𝕒⁺(1, 1, 0, [0.0, 0.0], [0.0, 0.0])),
         Operator(0.25),
-        Operator(-0.5, 𝕓(1, 1, 0, 2, [0.0, 0.0], [0.0, 0.0]), 𝕓(1, 1, 0, 1, [0.0, 0.0], [0.0, 0.0])),
-        Operator(-0.5, 𝕓(2, 1, 0, 2, [1.0, 0.0], [0.0, 0.0]), 𝕓(2, 1, 0, 1, [1.0, 0.0], [0.0, 0.0])),
-        Operator(1.0, 𝕓(2, 1, 0, 2, [1.0, 0.0], [0.0, 0.0]), 𝕓(2, 1, 0, 1, [1.0, 0.0], [0.0, 0.0]), 𝕓(1, 1, 0, 2, [0.0, 0.0], [0.0, 0.0]), 𝕓(1, 1, 0, 1, [0.0, 0.0], [0.0, 0.0]))
+        Operator(-0.5, 𝕒⁺(1, 1, 0, [0.0, 0.0], [0.0, 0.0]), 𝕒(1, 1, 0, [0.0, 0.0], [0.0, 0.0])),
+        Operator(-0.5, 𝕒⁺(2, 1, 0, [1.0, 0.0], [0.0, 0.0]), 𝕒(2, 1, 0, [1.0, 0.0], [0.0, 0.0])),
+        Operator(1.0, 𝕒⁺(2, 1, 0, [1.0, 0.0], [0.0, 0.0]), 𝕒(2, 1, 0, [1.0, 0.0], [0.0, 0.0]), 𝕒⁺(1, 1, 0, [0.0, 0.0], [0.0, 0.0]), 𝕒(1, 1, 0, [0.0, 0.0], [0.0, 0.0]))
     )
     @test hp(bosons) == bosons
+
+    @test RankFilter(0)(bosons) == Operators(Operator(0.25))
+    @test RankFilter(2)(bosons) == Operators(
+        Operator(0.5, 𝕒(2, 1, 0, [1.0, 0.0], [0.0, 0.0]), 𝕒(1, 1, 0, [0.0, 0.0], [0.0, 0.0])),
+        Operator(0.5, 𝕒⁺(2, 1, 0, [1.0, 0.0], [0.0, 0.0]), 𝕒⁺(1, 1, 0, [0.0, 0.0], [0.0, 0.0])),
+        Operator(-0.5, 𝕒⁺(1, 1, 0, [0.0, 0.0], [0.0, 0.0]), 𝕒(1, 1, 0, [0.0, 0.0], [0.0, 0.0])),
+        Operator(-0.5, 𝕒⁺(2, 1, 0, [1.0, 0.0], [0.0, 0.0]), 𝕒(2, 1, 0, [1.0, 0.0], [0.0, 0.0]))
+    )
+    @test RankFilter(4)(bosons) == Operators(
+        Operator(1.0, 𝕒⁺(2, 1, 0, [1.0, 0.0], [0.0, 0.0]), 𝕒(2, 1, 0, [1.0, 0.0], [0.0, 0.0]), 𝕒⁺(1, 1, 0, [0.0, 0.0], [0.0, 0.0]), 𝕒(1, 1, 0, [0.0, 0.0], [0.0, 0.0]))
+    )
 end
 
 @time @testset "SquareFM" begin
