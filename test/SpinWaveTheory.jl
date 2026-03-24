@@ -1,9 +1,10 @@
 using LinearAlgebra: norm
-using Plots: plot, plot!, savefig
 using QuantumLattices: atol, Algorithm, Generator, Heisenberg, Hilbert, Lattice, Operator, Operators, ReciprocalPath, Spin, Zeeman, 𝕒, 𝕒⁺, azimuth, azimuthd, bonds, expand, polar, polard, reciprocals, update!, @rectangle_str
 using SpinWaveTheory
 using SpinWaveTheory: RankFilter
 using TightBindingApproximation: EnergyBands, InelasticNeutronScatteringSpectra
+import CairoMakie as Makie
+import Plots
 
 @time @testset "rotation" begin
     input = rand(3)
@@ -73,9 +74,13 @@ end
     path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=100)
     eb = lswt(:EB, EnergyBands(path))
     spectra = lswt(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 5.0, length=501)); fwhm=0.1, rescale=x->log(1+x))
-    plt = plot()
-    plot!(plt, spectra)
-    plot!(plt, eb, color=:white, linestyle=:dash)
-    display(plt)
-    savefig("inelastic.png")
+    plt = Plots.plot()
+    Plots.plot!(plt, spectra)
+    Plots.plot!(plt, eb; color=:white, linestyle=:dash)
+    Plots.savefig(plt, "Plots-inelastic.png")
+    fig = Makie.Figure()
+    ax = Makie.Axis(fig[1, 1])
+    Makie.plot!(ax, spectra)
+    Makie.plot!(ax, eb; color=:white, linestyle=:dash)
+    Makie.save("Makie-inelastic.png", fig)
 end
