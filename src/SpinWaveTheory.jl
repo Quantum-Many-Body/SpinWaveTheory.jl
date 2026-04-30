@@ -1,8 +1,8 @@
 module SpinWaveTheory
 
 using LinearAlgebra: Diagonal, dot, eigen, norm
-using QuantumLattices: AbstractLattice, Algorithm, Assignment, CategorizedGenerator, CoordinatedIndex, FockIndex, Fock, Index, LinearTransformation, Neighbors, OneOrMore, Operator, OperatorGenerator, OperatorIndexToTuple, Operators, OperatorSum, SpinIndex, Spin, Table, Term, UnitSubstitution, ZeroAtLeast
-using QuantumLattices: atol, lazy, plain, rtol, bonds, delta, dimension, direction, fulltype, icoordinate, idtype, indextype, mul!, nneighbor, rcoordinate, reparameter, scalartype, sub!
+using QuantumLattices: AbstractLattice, Algorithm, Assignment, CategorizedGenerator, CoordinatedIndex, FockIndex, Fock, Index, LinearTransformation, Neighbors, OneOrMore, Operator, OperatorGenerator, OperatorIndexToTuple, OperatorSet, Operators, OperatorSum, SpinIndex, Spin, Table, Term, UnitSubstitution, ZeroAtLeast
+using QuantumLattices: atol, rtol, bonds, delta, dimension, direction, fulltype, icoordinate, idtype, indextype, mul!, nneighbor, rcoordinate, reparameter, scalartype, sub!
 using StaticArrays: SVector, SMatrix, @SMatrix
 using TightBindingApproximation: TBA, InelasticNeutronScatteringSpectra, Quadratic, Quadraticization, TBAKind
 using TimerOutputs: @timeit_debug
@@ -86,7 +86,6 @@ end
 @inline Base.valtype(hp::HolsteinPrimakoff) = valtype(typeof(hp))
 @inline Base.valtype(::Type{<:HolsteinPrimakoff{S}}) where {S<:Operators} = S
 @inline Base.valtype(::Type{<:HolsteinPrimakoff{S}}, ::Type{<:Operator}) where {S<:Operators} = S
-@inline Base.valtype(::Type{<:HolsteinPrimakoff{S}}, ::Type{<:Operators}) where {S<:Operators} = S
 @inline function operatortype(::Type{<:HolsteinPrimakoff}, ::Type{S}) where {S<:Operators}
     V = promote_type(scalartype(S), Complex{Int})
     Iₒ = indextype(eltype(eltype(S)))
@@ -172,7 +171,7 @@ struct RankFilter{R} <: LinearTransformation
     end
 end
 @inline Base.valtype(::Type{RankFilter{R}}, M::Type{<:Operator}) where R = reparameter(M, :id, NTuple{R, eltype(M)})
-@inline function Base.valtype(R::Type{<:RankFilter}, M::Type{<:OperatorSum})
+@inline function Base.valtype(R::Type{<:RankFilter}, M::Type{<:OperatorSet})
     V = valtype(R, eltype(M))
     return OperatorSum{V, idtype(V)}
 end
@@ -240,7 +239,7 @@ end
 Construct a LSWT.
 """
 @inline function LSWT(lattice::AbstractLattice, hilbert::Hilbert{<:Spin}, terms::OneOrMore{Term}, magneticstructure::MagneticStructure; neighbors::Union{Int, Neighbors}=nneighbor(terms))
-    system = OperatorGenerator(bonds(magneticstructure.cell, neighbors), hilbert, terms, plain, lazy; half=false)
+    system = OperatorGenerator(bonds(magneticstructure.cell, neighbors), hilbert, terms; half=false)
     hp = HolsteinPrimakoff{valtype(system)}(magneticstructure)
     return LSWT{Magnonic}(lattice, system, hp)
 end
