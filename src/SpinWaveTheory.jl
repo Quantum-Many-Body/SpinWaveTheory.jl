@@ -7,7 +7,7 @@ using StaticArrays: SVector, SMatrix, @SMatrix
 using TightBindingApproximation: TBA, InelasticNeutronScatteringSpectra, Quadratic, Quadraticization, TBAKind
 using TimerOutputs: @timeit_debug
 
-import QuantumLattices: Hilbert, Metric, add!, operatortype, rank, run!, update!
+import QuantumLattices: Hilbert, Metric, add!, operatortype, rank, run!, showasleaf, update!
 import TightBindingApproximation: InelasticNeutronScatteringSpectraData, commutator
 
 export HolsteinPrimakoff, LSWT, MagneticStructure, Magnonic, rotation
@@ -52,6 +52,7 @@ struct MagneticStructure{L<:AbstractLattice, D<:Number}
     moments::Dict{Int, SVector{3, D}}
     rotations::Dict{Int, SMatrix{3, 3, D, 9}}
 end
+@inline showasleaf(::Type{<:MagneticStructure}) = false
 
 """
     MagneticStructure(cell::AbstractLattice, moments::Dict{Int, <:Union{AbstractVector{<:Number}, NTuple{2, Number}}}; unit::Symbol=:radian)

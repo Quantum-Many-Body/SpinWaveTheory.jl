@@ -1,5 +1,5 @@
 using LinearAlgebra: norm
-using QuantumLattices: atol, Algorithm, Generator, Heisenberg, Hilbert, Lattice, Operator, Operators, ReciprocalPath, Spin, Zeeman, 𝕒, 𝕒⁺, azimuth, azimuthd, bonds, expand, polar, polard, reciprocals, update!, @rectangle_str
+using QuantumLattices: atol, Algorithm, Generator, Heisenberg, Hilbert, Lattice, Operator, Operators, ReciprocalPath, Spin, Zeeman, 𝕒, 𝕒⁺, azimuth, azimuthd, bonds, expand, polar, polard, reciprocals, showasleaf, update!, @rectangle_str
 using SpinWaveTheory
 using SpinWaveTheory: RankFilter
 using TightBindingApproximation: EnergyBands, InelasticNeutronScatteringSpectra
@@ -18,6 +18,7 @@ end
     cell = Lattice([0.0, 0.0], [1.0, 0.0])
     moments = Dict(site=>(iseven(site) ? [0, 0, 1] : [0, 0, -1]) for site=1:length(cell))
     magneticstructure = MagneticStructure(cell, moments)
+    @test showasleaf(typeof(magneticstructure)) == false
     @test magneticstructure.rotations[1] == [-1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 -1.0]
     @test magneticstructure.rotations[2] == [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
 end
