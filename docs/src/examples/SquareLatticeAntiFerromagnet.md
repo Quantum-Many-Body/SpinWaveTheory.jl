@@ -24,7 +24,7 @@ magneticstructure = MagneticStructure(
 )
 antiferromagnet = Algorithm(:SquareAFM, LSWT(lattice, hilbert, J, magneticstructure))
 
-path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=100)
+path = ReciprocalPath(lattice, rectangle"Γ-X-M-Γ", length=100)
 spectra = antiferromagnet(
     :INSS,
     InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=251));

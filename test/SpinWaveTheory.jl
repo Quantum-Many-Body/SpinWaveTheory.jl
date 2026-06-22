@@ -1,5 +1,5 @@
 using LinearAlgebra: norm
-using QuantumLattices: atol, Algorithm, Generator, Heisenberg, Hilbert, Lattice, Operator, Operators, ReciprocalPath, Spin, Zeeman, 𝕒, 𝕒⁺, azimuth, azimuthd, bonds, expand, polar, polard, reciprocals, showasleaf, update!, @rectangle_str
+using QuantumLattices: atol, Algorithm, Generator, Heisenberg, Hilbert, Lattice, Operator, Operators, ReciprocalPath, Spin, Zeeman, 𝕒, 𝕒⁺, azimuth, azimuthd, bonds, expand, polar, polard, showasleaf, update!, @rectangle_str
 using SpinWaveTheory
 using SpinWaveTheory: RankFilter
 using TightBindingApproximation: EnergyBands, InelasticNeutronScatteringSpectra
@@ -64,7 +64,7 @@ end
     lswt = Algorithm(:FM, LSWT(lattice, hilbert, (J, h), ms))
 
     update!(lswt; h=-0.5)
-    path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=8)
+    path = ReciprocalPath(lattice, rectangle"Γ-X-M-Γ", length=8)
     data = lswt(:EBS, EnergyBands(path)).data.values
     A(k) = 2.5-cos(k[1])-cos(k[2])
     for (i, k) in enumerate(path)
@@ -72,7 +72,7 @@ end
         @test isapprox(A(k), data[i, 2], atol=10*atol)
     end
 
-    path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=100)
+    path = ReciprocalPath(lattice, rectangle"Γ-X-M-Γ", length=100)
     eb = lswt(:EB, EnergyBands(path))
     spectra = lswt(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 5.0, length=501)); fwhm=0.1, rescale=x->log(1+x))
     plt = Plots.plot()
