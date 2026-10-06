@@ -74,7 +74,7 @@ end
 
     path = ReciprocalPath(lattice, rectangle"Γ-X-M-Γ", length=100)
     eb = lswt(:EB, EnergyBands(path))
-    spectra = lswt(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 5.0, length=501)); fwhm=0.1, rescale=x->log(1+x))
+    spectra = lswt(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 5.0, length=501); fwhm=0.1, rescale=x->log(1+x)))
     plt = Plots.plot()
     Plots.plot!(plt, spectra)
     Plots.plot!(plt, eb; color=:white, linestyle=:dash)
